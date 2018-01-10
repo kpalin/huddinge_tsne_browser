@@ -1,4 +1,5 @@
 from huddinge_tsne_browser import cli
 
-def test_cli_template():
-    assert cli.cli() == 'CLI template'
+
+def test_cli():
+    assert cli.cli([]) is not None

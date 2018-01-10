@@ -1,5 +1,20 @@
 import logging as log
 
+from . import util
+
+
+def read_jf(fname):
+    "Read jellyfish output file (kmer counts)"
+    import pandas as pd
+    import json
+    fin = open(fname)
+    b = int(fin.read(9))
+
+    j = fin.read(b)
+    j = json.loads(j.strip("\x00"))
+    d = pd.read_table(fin, sep=" ", header=None, names=["Sequence", "Count"])
+    return j, d.set_index("Sequence").Count
+
 
 class TsneMapper(object):
     """Reader and tsne transformer for huddinge distance files
@@ -12,7 +27,14 @@ class TsneMapper(object):
         - `input_file`:
         """
         self._input_file = input_file
+        self.data_dims = []
         self.read_data()
+
+    def __len__(
+            self, ):
+        """Return number of kmers
+        """
+        return len(self.sequences)
 
     def read_data(
             self, ):
@@ -41,16 +63,37 @@ class TsneMapper(object):
 
         assert self.N == len(self.sequences)
 
-        log.info("Read %d sequnces.", self.N)
-
-        log.info("Reading distances.")
-        self.read_distances(fin)
+        log.info("Read %d sequences.", self.N)
 
         if self.sequences.shape[1] > 1:
             log.info("Setting embedding from input data")
             self.embedding = self.sequences.set_index(0)
             self.embedding.columns = ["tsne0", "tsne1"]
             self.embedding.index.name = "Sequence"
+        else:
+            log.info("Memory usage %gMB" % (util.memory_usage()))
+            log.info("Reading distances.")
+            self.read_distances(fin)
+            log.info("Memory usage %gMB" % (util.memory_usage()))
+
+    def add_kmercounts(self, name, filename):
+        """
+        
+        Arguments:
+        - `name`:
+        - `filename`:
+        """
+        _, counts = read_jf(filename)
+
+        try:
+            self.embedding[name] = counts.loc[self.embedding.index].fillna(0)
+            if name not in self.data_dims:
+                self.data_dims.append(name)
+        except KeyError, e:
+            kmer_lens = sorted(set(len(x) for x in counts.index))
+            log.warning(
+                "Coudn't add %s kmers. They are of length %s while the embedding is for kmers of length %d"
+                % (name, ",".join(str(x) for x in kmer_lens), self.kmer_size))
 
     def read_distances(self, fin):
         """Read distance data from open file fin
@@ -64,9 +107,10 @@ class TsneMapper(object):
         d_pos = fin.tell()
         d = np.fromfile(fin, dtype="uint8", count=-1)
         assert len(d) == self.N * (self.N - 1) / 2
-        log.info("Reshaping..")
-        i, j = np.tril_indices(self.N, k=-1)
-        self.distances = pd.DataFrame({0: i, 1: j, 2: d})
+
+        self.distances = d
+
+        #self.distances = pd.DataFrame(M,index=np.arange(self.N),columns=np.arange(self.N))
 
         #self.distances = pd.read_table(
         #    fin,
@@ -77,7 +121,12 @@ class TsneMapper(object):
         #           1: int,
         #           2: float})
 
-        assert len(self.distances) == self.N * (self.N - 1) / 2
+        #assert len(self.distances) == self.N * (self.N - 1) / 2
+
+    def _get_kmer_size(self):
+        return len(self.sequences[0])
+
+    kmer_size = property(_get_kmer_size)
 
     def laidout(
             self, ):
@@ -88,15 +137,34 @@ class TsneMapper(object):
     def _get_matrix(self):
         if not hasattr(self, "_matrix"):
             import numpy as np
-            tot = self.distances[2].sum()
+            log.info("Memory usage before matrix formatting %gMB" %
+                     (util.memory_usage()))
 
-            M = self.distances.set_index([0, 1])[2].unstack().fillna(0)
-            M[M.index[-1]] = 0.0
-            M.loc[M.columns[0]] = 0.0
+            log.info("Reshaping..")
+            log.info("sizeof(distances) = %gMB" % (self.distances.nbytes /
+                                                   (2.0**20)))
+            M = np.zeros((self.N, self.N), dtype="float32")
+            log.info("sizeof(M) = %gMB" % (M.nbytes / (2.0**20)))
 
-            self._matrix = M + M.T
-            assert np.abs((tot * 2) - self._matrix.sum().sum()) < 1e-5, (
-                2 * tot - self._matrix.sum().sum())
+            idx = np.tril_indices(self.N, k=-1)
+            log.info("sizeof(idx) = %gMB" % (sum(x.nbytes
+                                                 for x in idx) / (2.0**20)))
+
+            M[idx] = self.distances
+
+            M += M.T
+            self._matrix = M
+
+            # Due to output format of all_pairs_huddinge, the following does *not* work.
+            #from scipy.spatial.distance import squareform
+            #self._matrix = squareform(self.distances.astype("float32"))
+            #assert np.allclose(M, self._matrix)
+            log.info("Memory usage after matrix formatting %gMB" %
+                     (util.memory_usage()))
+            del (M)
+            del (idx)
+            log.info("Memory usage after cleaning %gMB" %
+                     (util.memory_usage()))
 
         return self._matrix
 
@@ -108,15 +176,18 @@ class TsneMapper(object):
         import pandas as pd
         if fake:
             import numpy as np
-            self.embedding = np.random.normal(size=(len(self.sequences), 2))
+            self.embedding = np.random.normal(size=(self.kmer_size, 2))
         else:
             from sklearn.manifold import TSNE
             self.seq_tsne = TSNE(
                 perplexity=perplexity,
                 metric="precomputed",
                 verbose=9,
+                n_iter=4000,
                 init="random")
             self.embedding = self.seq_tsne.fit_transform(self.matrix)
+            log.info("Memory usage after embedding fit %gMB" %
+                     (util.memory_usage()))
 
         self.embedding = pd.DataFrame(
             self.embedding,
@@ -137,7 +208,9 @@ class TsneMapper(object):
         with open(outfile, "w") as outf:
             outf.write("%d\t%g\n" % (len(self.sequences), self.KLdivergence_))
             self.embedding.to_csv(outf, sep="\t", header=False, index=True)
-            self.distances[2].copy().astype("uint8").values.tofile(outf)
+            assert self.distances.dtype == "uint8"
+            assert self.distances.ndim == 1
+            self.distances.tofile(outf)
             #self.distances.to_csv(outf, sep="\t", header=False, index=False)
 
     def holoview_plot(
@@ -157,7 +230,7 @@ class TsneMapper(object):
             width=800, height=800))
         #p.pprint()
 
-        return None
+        return p
         #+hv.Histogram(self.distances[0], label="Distances", bins=20)
 
     def html(
