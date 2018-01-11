@@ -13,14 +13,13 @@ setup(
     url='https://github.com/kpalin/huddinge_tsne_browser',
     packages=['huddinge_tsne_browser'],
     entry_points={
-        'console_scripts': [
-            'huddinge_tsne_browser=huddinge_tsne_browser.cli:cli'
-        ]
+        'console_scripts':
+        ['huddinge_tsne_browser=huddinge_tsne_browser.cli:cli']
     },
+    package_data={"huddinge_tsne_browser": ["resources/*.tsne"]},
     install_requires=requirements,
     keywords='huddinge_tsne_browser',
     classifiers=[
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.6',
-    ]
-)
+    ])

@@ -16,14 +16,14 @@ requirements:
   build:
     - python
     - setuptools
-    - holoviews
+    - holoviews >= 1.9.2
   run:
     - python
     - pandas
     - sklearn
     - bokeh
     - numpy
-    - holoviews
+    - holoviews >= 1.9.2
 
 about:
   home: https://github.com/kpalin/huddinge_tsne_browser

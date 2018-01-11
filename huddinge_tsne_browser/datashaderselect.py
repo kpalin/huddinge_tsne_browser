@@ -27,13 +27,29 @@ class DataShaderSelect(Stream):
     def set_selection(self, x, y):
         if x is not None and y is not None:
             d = self.__source.dframe()
-            w_x = d.x.drop_duplicates().diff().max()
-            w_y = d.y.drop_duplicates().diff().max()
+            d = d.iloc[:(15 * 15)]
+
+            #print "Coords:"
+            #print str(d[[self._x, self._y]].drop_duplicates())
+            w_x = d[self._x].drop_duplicates().sort_values()
+            w_y = d[self._y].drop_duplicates().sort_values()
+            #print "set_selection", self._x, w_x, w_y
+            #print str(d)
+            # HACK HACK HACK
+
+            w_x = w_x.diff()
+            w_y = w_y.diff()
+            #print "diffs:", w_x, w_y
+            w_x = w_x.min()
+            w_y = w_y.min()
+            #print "widths:", w_x, w_y
 
             left_x, bottom_y, right_x, top_y = x - w_x / 2, y - w_y / 2, x + w_x / 2, y + w_y / 2
-            q = "(x<={right_x})&(x>({left_x}))&(y<={top_y})&(y>({bottom_y}))".format(
+            q = "({self._x}<={right_x})&({self._x}>({left_x}))&({self._y}<={top_y})&(({self._y}>({bottom_y})))".format(
                 **locals())
-            middle = d.query(q).iloc[0]
+
+            middle = d.query(q).iloc[0].rename({self._x: "x", self._y: "y"})
+
             self.left_x, self.bottom_y, self.right_x, self.top_y = middle.x - w_x / 2, middle.y - w_y / 2, middle.x + w_x / 2, middle.y + w_y / 2
 
             self.idx = (self._dataset[self._x] <= self.right_x) & (

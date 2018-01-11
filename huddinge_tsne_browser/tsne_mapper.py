@@ -20,14 +20,22 @@ class TsneMapper(object):
     """Reader and tsne transformer for huddinge distance files
     """
 
-    def __init__(self, input_file):
+    def __init__(self, input_file=None):
         """
         
         Arguments:
         - `input_file`:
         """
+
+        if input_file is None:
+            import pkg_resources
+            input_file = pkg_resources.resource_filename(
+                "huddinge_tsne_browser", "resources/kmer8_iters4k.tsne")
+
         self._input_file = input_file
         self.data_dims = []
+        self.coord_dims = ["tsne0", "tsne1"]
+
         self.read_data()
 
     def __len__(
@@ -68,13 +76,32 @@ class TsneMapper(object):
         if self.sequences.shape[1] > 1:
             log.info("Setting embedding from input data")
             self.embedding = self.sequences.set_index(0)
-            self.embedding.columns = ["tsne0", "tsne1"]
+            self.embedding.columns = self.coord_dims
             self.embedding.index.name = "Sequence"
         else:
             log.info("Memory usage %gMB" % (util.memory_usage()))
             log.info("Reading distances.")
             self.read_distances(fin)
             log.info("Memory usage %gMB" % (util.memory_usage()))
+
+    def set_kmer_values(self, annot, append=False):
+        """Set kmer annotation values
+        
+        Arguments:
+        - `annot`:
+        - `append`:
+        """
+        new_emb = self.embedding
+        if not append:
+            new_emb = new_emb.drop(self.data_dims, axis=1)
+            self.data_dims = []
+
+        annot = annot.drop(
+            [x for x in annot.columns if x in self.coord_dims], axis=1)
+        new_emb = new_emb.join(annot)
+
+        self.data_dims.extend(annot)
+        self.embedding = new_emb
 
     def add_kmercounts(self, name, filename):
         """
@@ -190,9 +217,7 @@ class TsneMapper(object):
                      (util.memory_usage()))
 
         self.embedding = pd.DataFrame(
-            self.embedding,
-            columns=["tsne0", "tsne1"],
-            index=self.sequences[0])
+            self.embedding, columns=self.coord_dims, index=self.sequences[0])
 
         self.embedding.index.name = "Sequence"
         self.KLdivergence_ = self.seq_tsne.kl_divergence_
@@ -223,7 +248,7 @@ class TsneMapper(object):
 
         p = hv.Scatter(
             self.embedding.reset_index(),
-            kdims=["tsne0", "tsne1"],
+            kdims=self.coord_dims,
             vdims=["Sequence"],
             label="Sequences",
         ).opts(plot=dict(tools=[hover, "box_select"])).opts(plot=dict(

@@ -27,7 +27,7 @@ class HuddingBrowser(object):
             self._points = hv.Points(
                 self._data.embedding.reset_index(),
                 #tsne.embedding.reset_index(),
-                kdims=["tsne0", "tsne1"],
+                kdims=self._data.coord_dims,
                 vdims=["Sequence"] + self._data.data_dims,
                 label="Sequences", )
 
@@ -35,9 +35,9 @@ class HuddingBrowser(object):
             overlay_dict = {}
             for d in self._data.data_dims:
                 p = hv.Points(
-                    self._data.embedding[["tsne0", "tsne1", d]].rename(
+                    self._data.embedding[self._data.coord_dims + [d]].rename(
                         columns={d: "Value"}).reset_index(),
-                    kdims=["tsne0", "tsne1"],
+                    kdims=self._data.coord_dims,
                     vdims=["Sequence", "Value"],
                     label="Sequences", )
                 overlay_dict[d] = p
@@ -52,16 +52,31 @@ class HuddingBrowser(object):
         - `reduction`:
         """
         import datashader as ds
+        from bokeh import palettes
         from holoviews.operation.datashader import aggregate, shade, datashade, dynspread
         if reduction is None:
             reduction = ds.mean
 
-        print "datashade", column, reduction, self._points
+        print "datashade", column, reduction
+        shade_opts = {"cmap": palettes.Viridis256}
+        if column is not None:
+            d = self._points.dframe()[column]
+            d_min, d_max = d.min(), d.max()
+            print "Value Range:", d_min, d_max
+            if d_min * d_max < 0.0:
+                print "Diverging palette"
+                d_extreme = max(-d_min, d_max)
+                shade_opts = {
+                    "cmap": palettes.RdYlBu11,
+                    "clim": (-d_extreme, d_extreme)
+                }
+
         plot = dynspread(
             datashade(
                 self._points,
-                aggregator=ds.count()
-                if column is None else reduction(column)))
+                aggregator=ds.count() if column is None else reduction(column),
+                normalization="linear",
+                **shade_opts))
         return plot
 
     def holoview_plot(
@@ -74,23 +89,13 @@ class HuddingBrowser(object):
 
         self.ds_points = self.datashade("Value" if len(self._data.data_dims) >
                                         0 else None)
-        #        else:
-        #            agg_dict = {k: ds.mean(k) for k in self._data.data_dims}
-        #            agg = ds.summary(**agg_dict)
-        #            print agg
-        #            print agg_dict
-        #agg = ds.mean(self._data.data_dims[0])
-
-        #        self.ds_points = dynspread(
-        #            datashade(self._points, aggregator=agg)).opts(
-        #                plot=dict(width=600, height=600))
         self.ds_points = self.ds_points.opts(plot=dict(width=600, height=600))
 
         # Hover and zoom grid tool.
         self._hover_grid = hv.util.Dynamic(
             aggregate(
                 self._points,
-                aggregator=ds.count(),
+                aggregator=ds.mean("Value"),
                 width=15,
                 height=15,
                 streams=[RangeXY(source=self.ds_points)]),
@@ -120,14 +125,15 @@ class HuddingBrowser(object):
             streams=[self._posxy]).opts(norm=dict(framewise=True))
 
         self._layout = self.ds_points * self._hover_grid * self.tap_indicators + self.selected_table + self.tap_zoom
-        #self._layout = ds_points * self._hover_grid
+
         self._layout = self._layout.cols(2).opts(plot={"shared_axes": False})
 
         return self._layout
 
     def tap_table(self, left_x, bottom_y, right_x, top_y, index):
-        e = self._posxy._dataset
-        print index
+        e = self._posxy._dataset[self._data.data_dims]
+        #print left_x, bottom_y, right_x, top_y, index
+        #print index
         if len(index) == 0 or left_x is None or bottom_y is None:
             #return hv.Points(([0],[0]))
             return hv.Table(e.head(0).reset_index())
@@ -137,7 +143,7 @@ class HuddingBrowser(object):
             return hv.Table(d.reset_index(), label="%d sequences" % (len(d)))
         else:
             p = hv.Table(
-                e.head(0).reset_index()[["Sequence"] + self._data.data_dims],
+                e.head(0).reset_index(),
                 label="Not showing %d sequences" % (len(d)))
         return p
 
@@ -154,21 +160,33 @@ class HuddingBrowser(object):
         return p
 
     def focus_plot(self, left_x, bottom_y, right_x, top_y, index):
+        from holoviews import streams
+        import holoviews as hv
         e = self._posxy._dataset
         if len(index) == 0 or left_x is None or bottom_y is None or len(
                 index) > 1000:
             p = hv.Points(
                 e.reset_index().head(0),
-                kdims=["tsne0", "tsne1"],
+                kdims=self._data.coord_dims,
                 vdims=["Sequence"] + self._data.data_dims,
                 label="%d sequences" % (len(e)))
+
         else:
             d = e.iloc[index]
             p = hv.Points(
                 d.reset_index(),
-                kdims=["tsne0", "tsne1"],
+                kdims=self._data.coord_dims,
                 vdims=["Sequence"] + self._data.data_dims,
                 label="%d sequences" % (len(d)))
+
+        selection = streams.Selection1D(source=p)
+
+        def selected_info(index):
+            #self._selected = _selection.source.iloc[index]
+            print "selected", index
+
+        print "Subscribing to selection"
+        selection.add_subscriber(selected_info)
 
         return p.opts(plot=dict(
             tools=["hover", "lasso_select", "box_select"],
