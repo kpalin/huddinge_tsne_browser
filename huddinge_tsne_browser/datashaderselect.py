@@ -13,7 +13,7 @@ class DataShaderSelect(Stream):
         doc="""
         Indices into a 1D datastructure.""")
 
-    def __init__(self, source, dataset, x="tsne0", y="tsne1", **kwargs):
+    def __init__(self, source, dataset=[], x="tsne0", y="tsne1", **kwargs):
         super(DataShaderSelect, self).__init__(**kwargs)
         self._x = x
         self._y = y

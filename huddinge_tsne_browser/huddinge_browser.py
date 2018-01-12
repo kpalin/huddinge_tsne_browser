@@ -39,8 +39,8 @@ class HuddingBrowser(object):
                         columns={d: "Value"}).reset_index(),
                     kdims=self._data.coord_dims,
                     vdims=["Sequence", "Value"],
-                    label="Sequences", )
-                overlay_dict[d] = p
+                    label="Sequences")
+                overlay_dict[d] = p  #.opts(plot={"color_index"=d})
             #self._points = hv.NdOverlay(overlay_dict, kdims=["Counts"])
             self._points = hv.HoloMap(overlay_dict, kdims=["Counts"])
 
@@ -57,26 +57,44 @@ class HuddingBrowser(object):
         if reduction is None:
             reduction = ds.mean
 
-        print "datashade", column, reduction
-        shade_opts = {"cmap": palettes.Viridis256}
+        #print "datashade", column, reduction
+        shade_opts = {"cmap": palettes.inferno(64)}
+
         if column is not None:
             d = self._points.dframe()[column]
             d_min, d_max = d.min(), d.max()
-            print "Value Range:", d_min, d_max
+            #print "Value Range:", d_min, d_max
+            #shade_opts["clims"] = (d_min, d_max)
+
             if d_min * d_max < 0.0:
                 print "Diverging palette"
                 d_extreme = max(-d_min, d_max)
                 shade_opts = {
                     "cmap": palettes.RdYlBu11,
-                    "clim": (-d_extreme, d_extreme)
+                    #"clims": (-d_extreme, d_extreme)
                 }
 
+        def _linear_norm_debug(v, masked):
+            import pandas as pd
+            #print args
+            #print kwargs
+            print v
+            print pd.DataFrame(v).describe()
+            min_v, max_v = v[~masked].min(), v[~masked].max()
+
+            print min_v, max_v
+            o = (v - min_v) / (max_v - min_v)
+            print o
+            return o
+
+        #del (shade_opts["clims"])
         plot = dynspread(
             datashade(
                 self._points,
                 aggregator=ds.count() if column is None else reduction(column),
-                normalization="linear",
+                normalization="linear" if "clims" in shade_opts else "eq_hist",
                 **shade_opts))
+
         return plot
 
     def holoview_plot(
@@ -120,11 +138,56 @@ class HuddingBrowser(object):
             self.tap_points, kdims=[], streams=[self._posxy])
         self.selected_table = hv.DynamicMap(
             self.tap_table, streams=[self._posxy])
-        self.tap_zoom = hv.DynamicMap(
-            self.focus_plot,
-            streams=[self._posxy]).opts(norm=dict(framewise=True))
 
-        self._layout = self.ds_points * self._hover_grid * self.tap_indicators + self.selected_table + self.tap_zoom
+        self.tap_zoom = hv.DynamicMap(
+            self.focus_plot, streams=[self._posxy],
+            kdims=["Counts"]).opts(norm=dict(framewise=True)).redim.values(
+                Counts=self._data.data_dims)
+
+        def _h(Counts, index, fine_index, **kwargs):
+            #print index, kwargs
+            from holoviews.operation import histogram
+
+            m = {
+                Counts: "Value",
+                "{}_frequency": "frequency",
+            }
+            if len(index) > 0:
+                d = self._data.embedding.iloc[index]
+                if len(fine_index) > 0:
+                    d = d.iloc[fine_index]
+                #print "Trying", Counts
+                label = "{} {} points".format(Counts, len(d))
+                r = histogram(
+                    hv.Points(d),
+                    #self.selected_table, 
+                    dimension=Counts,
+                    dynamic=False).redim(**m)
+            else:
+                label = "{} {} points".format(Counts,
+                                              len(self._data.embedding))
+                #print "Alt", Counts
+                r = histogram(
+                    self._points[Counts], dimension="Value",
+                    dynamic=False).redim(Value_frequency="frequency")
+
+            #print(r)
+            return r.relabel(label)
+
+        from holoviews import streams
+        self.zoom_selection = streams.Selection1D(source=self.tap_zoom)
+
+        self.p = hv.DynamicMap(
+            _h,
+            kdims=["Counts"],
+            streams=[
+                self.zoom_selection.rename(index="fine_index"), self._posxy
+            ]).redim.values(
+                Counts=self._data.data_dims).opts(norm=dict(framewise=True))
+
+
+        self._layout = self.ds_points * self._hover_grid * self.tap_indicators \
+                       + self.selected_table + self.tap_zoom + self.p
 
         self._layout = self._layout.cols(2).opts(plot={"shared_axes": False})
 
@@ -133,7 +196,6 @@ class HuddingBrowser(object):
     def tap_table(self, left_x, bottom_y, right_x, top_y, index):
         e = self._posxy._dataset[self._data.data_dims]
         #print left_x, bottom_y, right_x, top_y, index
-        #print index
         if len(index) == 0 or left_x is None or bottom_y is None:
             #return hv.Points(([0],[0]))
             return hv.Table(e.head(0).reset_index())
@@ -159,12 +221,13 @@ class HuddingBrowser(object):
 
         return p
 
-    def focus_plot(self, left_x, bottom_y, right_x, top_y, index):
+    def focus_plot(self, left_x, bottom_y, right_x, top_y, index, Counts):
         from holoviews import streams
         import holoviews as hv
         e = self._posxy._dataset
+        d = []
         if len(index) == 0 or left_x is None or bottom_y is None or len(
-                index) > 1000:
+                index) > 100000:
             p = hv.Points(
                 e.reset_index().head(0),
                 kdims=self._data.coord_dims,
@@ -179,24 +242,27 @@ class HuddingBrowser(object):
                 vdims=["Sequence"] + self._data.data_dims,
                 label="%d sequences" % (len(d)))
 
-        selection = streams.Selection1D(source=p)
-
-        def selected_info(index):
-            #self._selected = _selection.source.iloc[index]
-            print "selected", index
-
-        print "Subscribing to selection"
-        selection.add_subscriber(selected_info)
-
-        return p.opts(plot=dict(
+        self.zoom_selection.reset()
+        p = p.opts(plot=dict(
+            color_index=Counts,
             tools=["hover", "lasso_select", "box_select"],
             width=400,
             height=400))
+        #return p.hist(dimension=Counts, adjoin=False)
+        #print(p.dframe().head())
+        return p
+        p = p.hist(dimension="MeanFold", adjoin=False)
+        print(p)
+        return p
 
     def _get_selected(self):
         self._selected = self._data.embedding.head(0)
-        if len(self._posxy.selected) > 0:
+        if self._posxy.selected is None or len(self._posxy.selected) > 0:
             self._selected = self._posxy._dataset.iloc[self._posxy.selected]
+            if len(self.zoom_selection.index) > 0:
+                self._selected = self._selected.iloc[self.zoom_selection.index]
+        else:
+            self._selected = self._data.embedding
 
         return self._selected
 
