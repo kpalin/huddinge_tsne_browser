@@ -13,8 +13,8 @@ def cli(args=None):
     parser.add_argument(
         "-i",
         "--input",
-        help="Input file. Either with or without TSNE layout  [default:%(default)s]",
-        default="input.tsne")
+        help="Input file. Either with or without TSNE layout. Without version can be generated with all_pairs_huddinge  [default:%(default)s]",
+        required=True)
 
     parser.add_argument(
         "-o",
@@ -29,7 +29,7 @@ def cli(args=None):
     parser.add_argument(
         "-k",
         "--kmers",
-        help="Additional annotation kmer data. Currently only jellyfish output. Fromat name:/path/to/file.jf  [default:%(default)s]",
+        help="Additional annotation kmer data. Currently only jellyfish output. Format name:/path/to/file.jf  [default:%(default)s]",
         default=[],
         action="append")
 

@@ -1,0 +1,4 @@
+[submodule "MODER"]
+	path = MODER
+	url = git://github.com/kpalin/MODER.git
+	branch = huddinge_pairs

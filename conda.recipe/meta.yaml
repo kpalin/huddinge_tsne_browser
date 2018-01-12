@@ -10,20 +10,28 @@ build:
   # separate bld.bat and build.sh files instead of this key.  Add the line
   # "skip: True  # [py<35]" (for example) to limit to Python 3.5 and newer, or
   # "skip: True  # [not win]" to limit to Windows.
-  script: python setup.py install --single-version-externally-managed --record=record.txt
-
+#  script:  python setup.py install --single-version-externally-managed --record=record.txt
+test: py.test
 requirements:
   build:
     - python
     - setuptools
-    - holoviews >= 1.9.2
   run:
     - python
     - pandas
-    - sklearn
     - bokeh
-    - numpy
-    - holoviews >= 1.9.2
+    - scikit-learn
+    - holoviews >=1.9.2
+    - jellyfish
+
+test:
+  requires:
+    - pytest
+  source_files:
+    - tests
+  commands:
+    - py.test tests/
+
 
 about:
   home: https://github.com/kpalin/huddinge_tsne_browser

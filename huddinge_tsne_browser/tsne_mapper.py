@@ -27,10 +27,10 @@ class TsneMapper(object):
         - `input_file`:
         """
 
-        if input_file is None:
-            import pkg_resources
-            input_file = pkg_resources.resource_filename(
-                "huddinge_tsne_browser", "resources/kmer8_iters4k.tsne")
+        #if input_file is None:
+        #    import pkg_resources
+        #    input_file = pkg_resources.resource_filename(
+        #        "huddinge_tsne_browser", "resources/kmer8_iters4k.tsne")
 
         self._input_file = input_file
         self.data_dims = []
