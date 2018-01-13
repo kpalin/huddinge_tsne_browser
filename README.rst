@@ -16,4 +16,4 @@ you're lucky, you might be able to install everything with just
 
 To use the package efficiently, you should download, install and run
 the jupyter notebook `examples/Huddinge TSNE browser 2.ipynb` from the
-github repository.
+github repository. A static sample can be browsed in http://nbviewer.jupyter.org/github/kpalin/huddinge_tsne_browser/blob/master/examples/Huddinge%20TSNE%20browser%202.ipynb 
