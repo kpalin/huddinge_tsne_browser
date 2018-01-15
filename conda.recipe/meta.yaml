@@ -17,6 +17,7 @@ requirements:
     - python
     - setuptools
   run:
+    - psutil
     - python
     - pandas
     - bokeh
