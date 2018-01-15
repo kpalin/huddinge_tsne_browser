@@ -23,7 +23,7 @@ def memory_usage():
     import logging as log
     try:
         mem = memory_usage_psutil()
-    except ImportError, e:
+    except ImportError as e:
         log.info(
             "No psutil found. Reporting memory usage from resource module: %s"
             % (str(e)))
