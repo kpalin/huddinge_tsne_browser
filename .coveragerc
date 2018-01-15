@@ -1,0 +1,5 @@
+[report]
+omit =
+    setup.py
+    huddinge_tsne_browser/__main__.py
+    tests/*
