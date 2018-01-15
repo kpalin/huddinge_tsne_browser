@@ -21,6 +21,10 @@ install:
   - conda install anaconda-client
   - conda install pytest-cov
   - pip install coveralls
+  - conda config --add channels r
+  - conda config --add channels defaults
+  - conda config --add channels conda-forge
+  - conda config --add channels bioconda
   - conda build .
   - conda install --use-local huddinge_tsne_browser
   - conda info -a
