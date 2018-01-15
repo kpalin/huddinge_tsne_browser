@@ -8,7 +8,7 @@ from bokeh.io import curdoc
 from bokeh.layouts import layout
 from bokeh.models import Slider, Button
 
-from datashaderselect import DataShaderSelect
+from .datashaderselect import DataShaderSelect
 
 
 class HuddingBrowser(object):
@@ -67,7 +67,7 @@ class HuddingBrowser(object):
             #shade_opts["clims"] = (d_min, d_max)
 
             if d_min * d_max < 0.0:
-                print "Diverging palette"
+                print("Diverging palette")
                 d_extreme = max(-d_min, d_max)
                 shade_opts = {
                     "cmap": palettes.RdYlBu11,
@@ -78,13 +78,13 @@ class HuddingBrowser(object):
             import pandas as pd
             #print args
             #print kwargs
-            print v
-            print pd.DataFrame(v).describe()
+            print(v)
+            print(pd.DataFrame(v).describe())
             min_v, max_v = v[~masked].min(), v[~masked].max()
 
-            print min_v, max_v
+            print(min_v, max_v)
             o = (v - min_v) / (max_v - min_v)
-            print o
+            print(o)
             return o
 
         #del (shade_opts["clims"])

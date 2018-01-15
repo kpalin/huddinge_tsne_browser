@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import logging as log
 from huddinge_tsne_browser import cli
-from tsne_mapper import TsneMapper
-from huddinge_browser import huddinge_app
+from .tsne_mapper import TsneMapper
+from .huddinge_browser import huddinge_app
 
 import holoviews as hv
 hv.extension('bokeh')
@@ -31,7 +31,7 @@ data.add_kmercounts(
 
 
 def serve_embedding(data):
-    from huddinge_browser import HuddingBrowser
+    from .huddinge_browser import HuddingBrowser
     import holoviews as hv
     import traceback
 
@@ -56,7 +56,7 @@ def serve_embedding(data):
     try:
         log.info("Starting loop")
         loop.start()
-    except Exception, e:
+    except Exception as e:
         traceback.print_exc()
 
         server.stop()

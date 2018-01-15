@@ -49,7 +49,7 @@ class TsneMapper(object):
         """Read data from 'moder'
         """
         import pandas as pd
-        from cStringIO import StringIO
+        from io import StringIO
 
         fin = open(self._input_file)
         l = fin.readline()
@@ -116,7 +116,7 @@ class TsneMapper(object):
             self.embedding[name] = counts.loc[self.embedding.index].fillna(0)
             if name not in self.data_dims:
                 self.data_dims.append(name)
-        except KeyError, e:
+        except KeyError as e:
             kmer_lens = sorted(set(len(x) for x in counts.index))
             log.warning(
                 "Coudn't add %s kmers. They are of length %s while the embedding is for kmers of length %d"
