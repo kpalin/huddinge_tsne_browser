@@ -30,6 +30,7 @@ install:
   - conda install --use-local huddinge_tsne_browser
   - conda info -a
 script:
+  - conda install -y hypothesis
   - pytest -v --cov=huddinge_tsne_browser tests
 after_success:
   - coveralls
