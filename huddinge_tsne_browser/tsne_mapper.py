@@ -31,7 +31,8 @@ class TsneMapper(object):
         self.data_dims = []
         self.coord_dims = ["tsne0", "tsne1"]
 
-        self.read_data(force_distances)
+        if input_file is not None:
+            self.read_data(force_distances)
 
     def __len__(
             self, ):
@@ -99,6 +100,36 @@ class TsneMapper(object):
         self.data_dims.extend(annot)
         self.embedding = new_emb
 
+
+    def focus_sequences(self,prop_signal=0.1,prop_background=0.01):
+        "Return list of sequences including top prop_signal of highest count sequences for each data value and  prop_background of random sequences"
+        seqs = set(self.sequences.sample(int(prop_background*len(self.sequences)))[0])
+    
+        lims = self.embedding[self.data_dims].quantile(1-prop_background)
+        for d,l in lims.iteritems():
+            s = self.embedding.loc[self.embedding[d]>=l].index
+            seqs.update(s)
+
+        return list(sorted(seqs))
+
+    def subset_sequences(self,seqs):
+        "Drop all information about other sequences but seqs"
+        keepers = self.sequences[0].isin(seqs).nonzero()[0]
+
+        if hasattr(self,"distances"):
+            import itertools as it
+            ij = np.fromiter(it.combinations(keepers,2),dtype=[('j', int), ('i', int)])
+            idx = ij["i"]*((ij["i"]-1)/2) + ij["j"]
+            self.distances = self.distances[idx]
+
+        
+        
+        self.sequences = self.sequences.iloc[keepers]
+        self.N = len(self.sequences)
+        
+        self.embedding = self.embedding.reindex(index=seqs)
+        
+    
     def add_kmercounts(self, name, filename):
         """
         
@@ -133,18 +164,6 @@ class TsneMapper(object):
 
         self.distances = d
 
-        #self.distances = pd.DataFrame(M,index=np.arange(self.N),columns=np.arange(self.N))
-
-        #self.distances = pd.read_table(
-        #    fin,
-        #    sep="\t",
-        #    header=None,
-        #    engine="python",
-        #    dtype={0: int,
-        #           1: int,
-        #           2: float})
-
-        #assert len(self.distances) == self.N * (self.N - 1) / 2
 
     def _get_kmer_size(self):
         return len(self.sequences[0])
