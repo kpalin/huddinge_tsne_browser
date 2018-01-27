@@ -20,23 +20,18 @@ class TsneMapper(object):
     """Reader and tsne transformer for huddinge distance files
     """
 
-    def __init__(self, input_file=None):
+    def __init__(self, input_file=None,force_distances=False):
         """
         
         Arguments:
         - `input_file`:
         """
 
-        #if input_file is None:
-        #    import pkg_resources
-        #    input_file = pkg_resources.resource_filename(
-        #        "huddinge_tsne_browser", "resources/kmer8_iters4k.tsne")
-
         self._input_file = input_file
         self.data_dims = []
         self.coord_dims = ["tsne0", "tsne1"]
 
-        self.read_data()
+        self.read_data(force_distances)
 
     def __len__(
             self, ):
@@ -45,7 +40,7 @@ class TsneMapper(object):
         return len(self.sequences)
 
     def read_data(
-            self, ):
+            self, force_distances=False):
         """Read data from 'moder'
         """
         import pandas as pd
@@ -78,7 +73,8 @@ class TsneMapper(object):
             self.embedding = self.sequences.set_index(0)
             self.embedding.columns = self.coord_dims
             self.embedding.index.name = "Sequence"
-        else:
+            
+        if (not hasattr(self,"embedding")) or force_distances:
             log.info("Memory usage %gMB" % (util.memory_usage()))
             log.info("Reading distances.")
             self.read_distances(fin)
@@ -113,7 +109,7 @@ class TsneMapper(object):
         _, counts = read_jf(filename)
 
         try:
-            self.embedding[name] = counts.loc[self.embedding.index].fillna(0)
+            self.embedding[name] = counts.reindex(index=self.embedding.index,fill_value=0)
             if name not in self.data_dims:
                 self.data_dims.append(name)
         except KeyError as e:
