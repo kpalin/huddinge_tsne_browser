@@ -24,10 +24,13 @@ requirements:
     - scikit-learn
     - holoviews >=1.9.2
     - jellyfish
+    - datashader
+
 
 test:
   requires:
     - pytest
+    - hypothesis
   source_files:
     - tests
   commands:

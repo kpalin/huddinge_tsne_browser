@@ -53,7 +53,7 @@ class TsneMapper(object):
         p = l.split()
         self.N = int(p[0])
         if len(p) > 1:
-            self.KLdivergence_ = float(p[1])
+            self.fit_measure_ = float(p[1])
 
         l = [fin.readline() for _ in range(self.N)]
         bytes_read += sum(len(x) for x in l)
@@ -118,16 +118,23 @@ class TsneMapper(object):
 
         if hasattr(self,"distances"):
             import itertools as it
+            import numpy as np
             ij = np.fromiter(it.combinations(keepers,2),dtype=[('j', int), ('i', int)])
+            ij.sort(order=["i","j"])
             idx = ij["i"]*((ij["i"]-1)/2) + ij["j"]
+            #assert np.allclose(idx,idx.astype(int))
+            idx = idx.astype(int)
             self.distances = self.distances[idx]
 
+        if hasattr(self,"_matrix"):
+            del(self._matrix)
         
         
         self.sequences = self.sequences.iloc[keepers]
         self.N = len(self.sequences)
-        
-        self.embedding = self.embedding.reindex(index=seqs)
+
+        if hasattr(self,"embedding"):
+            self.embedding = self.embedding.reindex(index=seqs)
         
     
     def add_kmercounts(self, name, filename):
@@ -170,11 +177,20 @@ class TsneMapper(object):
 
     kmer_size = property(_get_kmer_size)
 
+
+    def clear_layout(self):
+        "Remove layout information"
+        self.sequences= self.sequences[[0]]
+        self.embedding = self.embedding.drop(self.coord_dims,axis=1)
+        del(self.fit_measure_)
+        
+
+            
     def laidout(
             self, ):
         """Are the sequences laid out properly
         """
-        return self.sequences.shape[1] > 1
+        return hasattr(self,"embedding") and set(self.coord_dims).issubset(self.embedding.columns)
 
     def _get_matrix(self):
         if not hasattr(self, "_matrix"):
@@ -215,6 +231,8 @@ class TsneMapper(object):
     def compute_tsne(self, perplexity=30.0, fake=False):
         """
         """
+        if self.laidout():
+            self.clear_layout()
         import pandas as pd
         if fake:
             import numpy as np
@@ -235,8 +253,31 @@ class TsneMapper(object):
             self.embedding, columns=self.coord_dims, index=self.sequences[0])
 
         self.embedding.index.name = "Sequence"
-        self.KLdivergence_ = self.seq_tsne.kl_divergence_
+        self.fit_measure_ = self.seq_tsne.kl_divergence_
 
+
+    def compute_mds(self):
+        """
+        """
+        if self.laidout():
+            self.clear_layout()
+            
+        import pandas as pd
+        from sklearn.manifold import MDS
+        self.seq_mds = MDS(
+            dissimilarity="precomputed",
+            verbose=1,
+            n_jobs=-2)
+        self.embedding = self.seq_mds.fit_transform(self.matrix)
+        log.info("Memory usage after embedding fit %gMB" %
+                 (util.memory_usage()))
+
+        self.embedding = pd.DataFrame(
+            self.embedding, columns=self.coord_dims, index=self.sequences[0])
+
+        self.embedding.index.name = "Sequence"
+        self.fit_measure_ = self.seq_mds.stress_
+        
     def write_data(self, outfile):
         """
         
@@ -246,7 +287,7 @@ class TsneMapper(object):
 
         log.info("Writing %s" % (outfile))
         with open(outfile, "w") as outf:
-            outf.write("%d\t%g\n" % (len(self.sequences), self.KLdivergence_))
+            outf.write("%d\t%g\n" % (len(self.sequences), self.fit_measure_))
             self.embedding.to_csv(outf, sep="\t", header=False, index=True)
             assert self.distances.dtype == "uint8"
             assert self.distances.ndim == 1
