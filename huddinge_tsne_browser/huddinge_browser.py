@@ -11,6 +11,70 @@ from bokeh.models import Slider, Button
 from .datashaderselect import DataShaderSelect
 
 
+def eq_hist_percentiles_symmetric(data, mask=None, nbins=256):
+    """Return a numpy array after histogram equalization.
+    For use in `shade`.
+    Parameters
+    ----------
+    data : ndarray
+    mask : ndarray, optional
+       Boolean array of missing points. Where True, the output will be `NaN`.
+    nbins : int, optional
+        Number of bins to use. Note that this argument is ignored for integer
+        arrays, which bin by the integer values directly.
+    Notes
+    -----
+    This function is adapted from the implementation in scikit-image [1]_.
+    References
+    ----------
+    .. [1] http://scikit-image.org/docs/stable/api/skimage.exposure.html#equalize-hist
+    """
+    print(np.histogram(data[~mask]))
+    if not isinstance(data, np.ndarray):
+
+        #raise TypeError("data must be np.ndarray")
+        data2 = np.array(data)
+        data = data2
+    else:
+        data2 = data if mask is None else data[~mask]
+    if np.issubdtype(data2.dtype, np.integer):
+        assert ValueError("Something funny with input")
+    else:
+        # # Split by percentile
+        # n = 100
+        # xpercent = 1 - np.logspace(0, -2, num=n)
+
+        # bin_edges = np.unique(np.percentile(data2, np.linspace(0, 100)))
+        # hist, _ = np.histogram(data2, bins=bin_edges)
+        # cdf = hist.cumsum()
+        # cdf = cdf / float(cdf[-1] + 1.0)
+        # bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+
+        hist, bin_edges = np.histogram(data2[data2 <= 0], bins=256)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+
+        cdf = hist.cumsum()
+        cdf = cdf / (2.0 * float(cdf[-1]))
+
+        hist2, bin_edges2 = np.histogram(data2[data2 > 0], bins=256)
+        bin_centers2 = (bin_edges2[:-1] + bin_edges2[1:]) / 2
+
+        cdf2 = hist2.cumsum()
+        cdf2 = cdf2 / (2.0 * float(cdf2[-1])) + 0.5
+
+        bin_centers = np.concatenate([bin_centers, bin_centers2])
+        cdf = np.concatenate([cdf, cdf2])
+        #print(hist.sum(), hist2.sum(), data2.shape, cdf)
+        #print(np.histogram(data2))
+
+    #    print("Range:", data2.min(), data2.max())
+    #    print(
+    #        "bin_centers,value:",  #map("{0[0]:.3g}:{0[1]:.2g}".format,
+    #        zip(bin_centers, cdf))
+    out = np.interp(data.flat, bin_centers, cdf).reshape(data.shape)
+    return out if mask is None else np.where(mask, np.nan, out)
+
+
 class HuddingBrowser(object):
     """
     """
@@ -51,6 +115,7 @@ class HuddingBrowser(object):
         - `column`:
         - `reduction`:
         """
+        import numpy as np
         import datashader as ds
         from bokeh import palettes
         from holoviews.operation.datashader import aggregate, shade, datashade, dynspread
@@ -59,40 +124,55 @@ class HuddingBrowser(object):
 
         #print "datashade", column, reduction
         shade_opts = {"cmap": palettes.inferno(64)}
+        shade_opts = {"cmap": palettes.Viridis256[::-1]}
 
         if column is not None:
             d = self._points.dframe()[column]
-            d_min, d_max = d.min(), d.max()
+            d_min, d_max = np.percentile(d, [1.0, 99.0])  #.min(), d.max()
             #print "Value Range:", d_min, d_max
             #shade_opts["clims"] = (d_min, d_max)
 
             if d_min * d_max < 0.0:
-                print("Diverging palette")
                 d_extreme = max(-d_min, d_max)
+                print("Diverging palette", (-d_extreme, d_extreme),
+                      (d_min, d_max))
                 shade_opts = {
                     "cmap": palettes.RdYlBu11,
-                    #"clims": (-d_extreme, d_extreme)
+                    #"clims": (-d_extreme, d_extreme),
+                    "normalization": "eq_hist"
+                    #"normalization": eq_hist_percentiles_symmetric
                 }
 
         def _linear_norm_debug(v, masked):
-            import pandas as pd
-            #print args
-            #print kwargs
-            print(v)
-            print(pd.DataFrame(v).describe())
-            min_v, max_v = v[~masked].min(), v[~masked].max()
+            #import pandas as pd
+            import numpy as np
+            #return np.log1p(np.where(masked, np.nan, v))
+            #            print args
+            #            print kwargs.keys()
+            #v1d = v[~masked]
+            try:
+                min_v, max_v = np.nanmin(v.flat), np.nanmax(v.flat)
+            except Exception:
+                print("Poikkeus:", v)
+                v = np.array(v)
+                min_v, max_v = np.nanmin(v.flat), np.nanmax(v.flat)
 
-            print(min_v, max_v)
-            o = (v - min_v) / (max_v - min_v)
-            print(o)
-            return o
+            o = (v - (min_v - 1.0))
+            print("o range after sub:", np.nanmin(o.flat), np.nanmax(o.flat))
+            o /= (max_v - min_v)
+            print(min_v, max_v, np.nanmin(o.flat), np.nanmax(o.flat))
+            r = o
+            #r = 50.0**(o - 1.0)
+            print("Out", np.nanmin(r.flat), np.nanmax(r.flat))
+            return np.where(masked, np.nan, r)
 
+        #shade_opts["normalization"] = "linear"  #_percentiles
+        #shade_opts["span"] = None
         #del (shade_opts["clims"])
         plot = dynspread(
             datashade(
                 self._points,
                 aggregator=ds.count() if column is None else reduction(column),
-                normalization="linear" if "clims" in shade_opts else "eq_hist",
                 **shade_opts))
 
         return plot
@@ -123,7 +203,10 @@ class HuddingBrowser(object):
 
         # Get the points in tapped rectangle
         self._posxy = DataShaderSelect(
-            source=self._hover_grid, dataset=self._data.embedding)
+            source=self._hover_grid,
+            dataset=self._data.embedding,
+            x=self._data.coord_dims[0],
+            y=self._data.coord_dims[1])
 
         #self._posxy = hv.streams.Tap(source=self._hover_grid)
 
@@ -155,8 +238,11 @@ class HuddingBrowser(object):
             if len(index) > 0:
                 d = self._data.embedding.iloc[index]
                 if len(fine_index) > 0:
-                    d = d.iloc[fine_index]
-                #print "Trying", Counts
+                    try:
+                        d = d.iloc[fine_index]
+                    except IndexError:
+                        pass
+
                 label = "{} {} points".format(Counts, len(d))
                 r = histogram(
                     hv.Points(d),
