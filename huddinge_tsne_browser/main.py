@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging as log
 from huddinge_tsne_browser import cli
-from .tsne_mapper import TsneMapper
+from .tsne_mapper import TsneMapper, PolarMapper
 from .huddinge_browser import huddinge_app
 
 import holoviews as hv
@@ -9,25 +9,9 @@ hv.extension('bokeh')
 
 args = cli.cli()
 
-data = TsneMapper(args.input)
-
-if not data.laidout():
-    data.compute_tsne()
-
-try:
-    data.write_data(args.output)
-except TypeError:
-    pass
+data = PolarMapper(args.input, args.json_config)
 
 log.info("Executing module %s", __name__)
-
-for n, f in args.kmers:
-    log.info("Adding %s as %s", f, n)
-    data.add_kmercounts(n, f)
-
-data.add_kmercounts(
-    "HNF4A",
-    "/home/kpalin/software/MODER/data/HNF4A_TGACAG20NGA_AF_1.mer_counts.jf")
 
 
 def serve_embedding(data):
@@ -37,8 +21,9 @@ def serve_embedding(data):
 
     renderer = hv.renderer('bokeh')
 
-    hb = HuddingBrowser(data)
-    p = hb.holoview_plot()
+    #import pdb
+    #pdb.set_trace()
+    p = data.plot_polar("HNF4A")
 
     app = renderer.app(p)
 
@@ -67,8 +52,10 @@ if __name__ == "__main__":
         log.info("Outputting %s", args.html)
         from bokeh.io import output_file, show, save
 
-        #save(data.html(), args.html)
+        save(data.html(), args.html)
+    else:
         serve_embedding(data)
 else:
     log.info("serving plots")
-    huddinge_app(data)
+    #huddinge_app(data)
+    serve_embedding(data)

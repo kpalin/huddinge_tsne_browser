@@ -431,8 +431,14 @@ def modify_doc(doc, data):
     renderer = hv.renderer('bokeh').instance(mode='server')
 
     #p = points + hv.DynamicMap(selected_info, streams=[selection])
-    hb = HuddingBrowser(data)
-    p = hb.holoview_plot()
+    import pdb
+    pdb.set_trace()
+    if isinstance(data, TsneMapper):
+
+        hb = HuddingBrowser(data)
+        p = hb.holoview_plot()
+    else:
+        p = data.plot_polar("HNF4A")
 
     hvplot_p = renderer.get_plot(p, doc)
 
@@ -457,6 +463,7 @@ def huddinge_app(data):
 
 
 def huddinge_app(data):
+    import logging as log
     import holoviews as hv
 
     #p = points + hv.DynamicMap(selected_info, streams=[selection])
@@ -464,5 +471,8 @@ def huddinge_app(data):
     p = hb.holoview_plot()
 
     doc = hv.renderer('bokeh').server_doc(p)
+    doc.title = "Huddinge Browser"
+
+    log.info("Returning doc")
 
     return doc

@@ -27,11 +27,10 @@ def cli(args=None):
         default="huddinge_tsne.html")
 
     parser.add_argument(
-        "-k",
-        "--kmers",
-        help="Additional annotation kmer data. Currently only jellyfish output. Format name:/path/to/file.jf  [default:%(default)s]",
-        default=[],
-        action="append")
+        "-j",
+        "--json_config",
+        help="json format configuration file  [default:%(default)s]",
+        default="huddinge_input.json")
 
     parser.add_argument(
         "-V",
@@ -55,20 +54,5 @@ def cli(args=None):
             log_file_handler.setFormatter(
                 logging.getLogger().handlers[0].formatter)
             logging.getLogger().addHandler(log_file_handler)
-
-    kmers_args = []
-    from os.path import basename, exists
-    for x in args.kmers:
-        p = x.split(":")
-        if len(p) == 1:
-            p = (basename(p[0]).split(".")[0], p[0])
-        elif len(p) == 2:
-            p = tuple(p)
-        else:
-            raise ValueError(str(p))
-        if not exists(p[1]):
-            raise ValueError(p[1])
-        kmers_args.append(p)
-    args.kmers = kmers_args
 
     return args
