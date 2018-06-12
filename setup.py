@@ -6,7 +6,7 @@ requirements = [
 
 setup(
     name='huddinge_tsne_browser',
-    version='0.1.0',
+    version='0.2.0',
     description="Tool to browse sequence kmers laid out in 2D with TSNE approximating Huddinge distance",
     author="Kimmo Palin",
     author_email='kimmo.palin@helsinki.fi',
