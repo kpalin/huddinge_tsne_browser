@@ -705,8 +705,8 @@ class TsneMapper(object):
 
             self._matrix = pd.DataFrame(
                 self._matrix,
-                index=self.sequences[0].squeeze(),
-                columns=self.sequences[0].squeeze())
+                index=self.sequences[0],
+                columns=self.sequences[0])
 
             log.info("Memory usage after matrix formatting %gMB" %
                      (util.memory_usage()))
@@ -782,8 +782,8 @@ class TsneMapper(object):
 
         # Kmers on huddinge distance 1 are adjacent and distance two are half way.
         adjacency = np.zeros(self.matrix.shape)
-        is_smallish = self.matrix < 2.5
-        adjacency[is_smallish] = 1.0 / self.matrix[is_smallish]
+        is_smallish = self.matrix.values < 2.5
+        adjacency[is_smallish] = 1.0 / self.matrix.values[is_smallish]
         np.fill_diagonal(adjacency, 0.0)
 
         disconnected = np.nonzero(~adjacency.any(axis=0))[0]
@@ -791,7 +791,8 @@ class TsneMapper(object):
         if len(disconnected) > 0:
             if random_reconnect:
                 # Kmers further away are adjacent to a random kmer at huddinge distance 2
-                dis_idx, dis_adj = np.nonzero(self.matrix[disconnected] == 2)
+                dis_idx, dis_adj = np.nonzero(
+                    (self.matrix.iloc[disconnected] == 2).values)
 
                 import numpy as np
                 rand_neighbor = pd.Series(dis_adj).groupby(dis_idx).apply(
@@ -799,7 +800,7 @@ class TsneMapper(object):
 
                 x, y = disconnected[rand_neighbor.index].astype(
                     int), rand_neighbor.values.astype(int)
-                assert (self.matrix[x, y] == 2).all()
+                assert (self.matrix.iloc[x, y] == 2).all().all()
 
                 adjacency[x, y] = True
                 adjacency[y, x] = True

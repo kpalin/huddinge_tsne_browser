@@ -44,7 +44,7 @@ def matrix_dtype(tsne_obj):
     assert tsne_obj.matrix.dtype == float
 
 
-@pytest.mark.skip(reason="Slow test")
+#@pytest.mark.skip(reason="Slow test")
 def test_layout_mds(tsne_obj):
     tsne_obj.compute_mds()
     assert tsne_obj.laidout()
@@ -103,11 +103,13 @@ def test_subsetting_distances(tsne_obj, seqs):
 
     old_idx = [old_i.get_loc(x) for x in seqs_order]
 
-    old_dist = tsne_old.matrix[old_idx, :][:, old_idx]
+    #old_dist = tsne_old.matrix[old_idx, :][:, old_idx]
+    old_dist = tsne_old.matrix.iloc[old_idx, old_idx]
     new_dist = tsne_new.matrix
     np.testing.assert_allclose(old_dist, new_dist)
 
 
+@pytest.mark.skip(reason="Slow test")
 @given(seqs=st.lists(
     st.sampled_from(list(tsne_obj().sequences[0])),
     min_size=3,
