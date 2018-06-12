@@ -5,13 +5,25 @@ from .tsne_mapper import TsneMapper, PolarMapper
 from .huddinge_browser import huddinge_app
 
 import holoviews as hv
+
 hv.extension('bokeh')
 
-args = cli.cli()
 
-data = PolarMapper(args.input, args.json_config)
+def main():
+    args = cli.cli()
+    log.info("Running in main()")
 
-log.info("Executing module %s", __name__)
+    data = PolarMapper(args.input, args.json_config)
+    print(args)
+    log.info("Executing module %s", __name__)
+    if args.html is not None:
+        log.info("Outputting %s", args.html)
+        from bokeh.io import output_file, show, save
+
+        save(data.plot_polar("HNF4A").html(), args.html)
+    else:
+        log.info("Serving plots from main")
+        serve_embedding(data)
 
 
 def serve_embedding(data):
@@ -23,7 +35,7 @@ def serve_embedding(data):
 
     #import pdb
     #pdb.set_trace()
-    p = data.plot_polar("HNF4A")
+    p = data.plot_polar()
 
     app = renderer.app(p)
 
@@ -48,14 +60,10 @@ def serve_embedding(data):
 
 
 if __name__ == "__main__":
-    if args.html is not None:
-        log.info("Outputting %s", args.html)
-        from bokeh.io import output_file, show, save
-
-        save(data.html(), args.html)
-    else:
-        serve_embedding(data)
+    main()
 else:
-    log.info("serving plots")
+    main()
+    #log.info("serving plots")
     #huddinge_app(data)
-    serve_embedding(data)
+    #print("Serving plots outside main")
+    #serve_embedding(data)

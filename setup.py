@@ -14,7 +14,7 @@ setup(
     packages=['huddinge_tsne_browser'],
     entry_points={
         'console_scripts':
-        ['huddinge_tsne_browser=huddinge_tsne_browser.cli:cli']
+        ['huddinge_tsne_browser=huddinge_tsne_browser.main:main']
     },
     #package_data={"huddinge_tsne_browser": ["resources/*.tsne"]},
     install_requires=requirements,

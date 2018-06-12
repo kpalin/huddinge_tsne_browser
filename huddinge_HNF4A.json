@@ -1,0 +1,27 @@
+{
+   "_config": {
+      "kmer_size": 8
+   }, 
+   "HNF4A": [
+      {
+         "fasta": "ERR1003746.fastq.gz", 
+         "filename": "ERR1003746.8mer_counts.jf", 
+         "cycle": 1
+      }, 
+      {
+         "fasta": "ERR1003748.fastq.gz", 
+         "filename": "ERR1003748.8mer_counts.jf", 
+         "cycle": 2
+      }, 
+      {
+         "fasta": "ERR1003750.fastq.gz", 
+         "filename": "ERR1003750.8mer_counts.jf", 
+         "cycle": 3
+      }, 
+      {
+         "fasta": "ERR1003752.fastq.gz", 
+         "filename": "ERR1003752.8mer_counts.jf", 
+         "cycle": 4
+      }
+   ]
+}

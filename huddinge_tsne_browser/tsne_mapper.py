@@ -89,6 +89,16 @@ class PolarMapper(object):
         self.config = json.load(open(config_file))
         log.info(str(self.config))
 
+        self.sole_binder = [x for x in self.config.keys() if x != "_config"]
+        if len(self.sole_binder) != 1:
+            import sys
+            log.critical(
+                "Currently config file can only take one binder at a time. Found {}".
+                format(str(self.sole_binder)))
+            sys.exit(1)
+        else:
+            self.sole_binder = self.sole_binder[0]
+
         self.kmer_size = self.config["_config"].setdefault("kmer_size", 8)
 
         # Load
@@ -153,31 +163,36 @@ class PolarMapper(object):
                          format(max_local_dist, kmer))
                 rep_maxima.loc[kmer] = kmer
                 continue
-            if neighbours.max(
-            ) < v:  # All neighbours are lower, hence we have local maxima
+            if neighbours.max() < v:
+                # All neighbours are lower, hence we have local maxima
                 local_maxima.append(kmer)
                 new_neighbours = set(neighbours.index) - set(
                     rep_maxima.loc[rep_maxima.notnull()].index)
                 rep_maxima.loc[list(new_neighbours) + [kmer]] = kmer
 
             else:
+                # Not local maxima. Allocate self to highest rep neighbour.
                 allocated_neighbours = set(
                     neighbours[neighbours >= v].index) & set(
                         rep_maxima.loc[rep_maxima.notnull()].index)
                 c_reps = rep_maxima.loc[list(allocated_neighbours)]
 
                 if c_reps.nunique() != 1:
-                    log.info(str(c_reps.drop_duplicates()))
+                    log.info(str(skmers.loc[c_reps.drop_duplicates()]))
 
-                new_neighbours = set(neighbours.index) - set(
-                    rep_maxima.loc[rep_maxima.notnull()].index)
-                rep_maxima.loc[list(new_neighbours) +
-                               [kmer]] = skmers.loc[c_reps].argmax()
+                #new_neighbours = set(neighbours.index) - set(
+                #    rep_maxima.loc[rep_maxima.notnull()].index)
+                rep_maxima.loc[  #list(new_neighbours) +
+                    [kmer]] = skmers.loc[c_reps].argmax()
 
                 #print(rep_maxima.loc[list(allocated_neighbours)])
                 #log.info("Skipping non maximal locus {}".format(kmer))
         rep_maxima.index.name = "kmer"
         rep_maxima.name = "representative"
+        assert (skmers.loc[rep_maxima.index].values <=
+                skmers.loc[rep_maxima].values).all()
+
+        log.info(str(skmers.loc[local_maxima]))
         return local_maxima, rep_maxima
 
     def circle_map_anchors(self, binder, anchors):
@@ -233,17 +248,23 @@ class PolarMapper(object):
         return r, thetas, D, opt.fun / _n, ((D - jittered_dist)
                                             **2).sum().sum() / 2
 
-    def plot_polar(self, binder, theta_angle=None, representatives=None):
+    def plot_polar(self, binder=None, theta_angle=None):
         "Arguments: Name of the binder tf and list of representative kmers (with angle positions)"
         import numpy as np
         import holoviews as hv
 
+        if binder is None:
+            binder = self.sole_binder
+        else:
+            assert binder == self.sole_binder
+
         tf = binder
 
-        loc_max = self.local_maxima[binder][0][:10]
+        loc_max, representatives = self.local_maxima[binder]
+        loc_max = loc_max[:10]
+        log.info("local maxima: {}".format(str(loc_max)))
+
         _, theta_angle, _, _, _ = self.circle_map_anchors(binder, loc_max)
-        #%opts Points (cmap="inferno_r") [tools=['box_select', 'lasso_select'] scaling_factor=50 width=500 height=500]  { +axiswise -framewise }
-        #%%opts Histogram (cmap="inferno_r") { +axiswise -framewise }
 
         from holoviews import streams
 
@@ -254,45 +275,27 @@ class PolarMapper(object):
         anchors_x = polar2cartesian(enrichment_r, theta_angle)
         anchors_x["enrichment"] = enrichment_r
 
-        if representatives is None:
-            # Select the closest (in hudding distance) local maxima as representative. 
-            # Break ties according to enrichment
-            representatives = huddinge_mat.loc[enrichment_r.index]
-            representatives.index.name = "representative"
-            representatives.columns.name = "kmer"
+        # Select the closest (in hudding distance) local maxima as representative. 
+        # Break ties according to enrichment
+        import pandas as pd
+        single_rep = pd.DataFrame(representatives)
+        single_rep["distance"] = [
+            huddinge_mat.at[x, y]
+            for x, y in single_rep.representative.iteritems()
+        ]
 
-            representatives = representatives[representatives ==
-                                              representatives.min()].T.stack()
-            representatives.name = "distance"
-
-            #Position others
-            #single_rep = representatives.groupby("kmer").apply(lambda x:x.sample(1))
-            single_rep = representatives.reset_index("representative")
-            single_rep["rep_enrichment"] = enrichment_r[
-                single_rep.representative].values
-            single_rep = single_rep.groupby("kmer").apply(
-                lambda x: x.sort_values("rep_enrichment").tail(1))
-            single_rep = single_rep.reset_index(
-                0, drop=True)  #.drop("rep_enrichment",axis=1)
-
-            #single_rep.index.names=["d"] + list(single_rep.index.names)[1:]
-            #single_rep=single_rep.reset_index("d",drop=True).reset_index("representative")
-        else:
-            single_rep = pd.DataFrame(representatives)
-            single_rep["distance"] = [
-                huddinge_mat.at[x, y]
-                for x, y in single_rep.representative.iteritems()
-            ]
-
-        single_rep["enrichment"] = self.data.loc[tf].loc[single_rep.index,
-                                                         "mean_ln_fold"].values
+        #single_rep["enrichment"] = self.data.loc[tf].loc[single_rep.index,
+        #                                                 "mean_ln_fold"].values
+        ENRICHMENT = "mean_ln_fold"
+        single_rep = single_rep.join(self.data.loc[tf])
+        single_rep.columns = map(str, single_rep.columns)
         single_rep["theta"] = theta_angle[single_rep.representative].values
 
         # Add angular jitter
         jitter_span = 2 * np.pi / 200.0 * single_rep.distance
 
         single_rep[["x", "y"]] = polar2cartesian(
-            single_rep.enrichment, single_rep.theta + np.random.uniform(
+            single_rep[ENRICHMENT], single_rep.theta + np.random.uniform(
                 low=-jitter_span, high=jitter_span, size=len(jitter_span)))
 
         # Declare some points
@@ -310,7 +313,8 @@ class PolarMapper(object):
                     width=600,
                     height=500,
                     scaling_factor=13,
-                    size_index="enrichment",
+                    size_index=ENRICHMENT,
+                    bgcolor="lightgray",
                     show_grid=True,
                     color_index="distance",
                     colorbar=True,
@@ -328,8 +332,6 @@ class PolarMapper(object):
 
         # Declare points as source of selection stream
         selection = streams.Selection1D(source=points)
-
-        ENRICHMENT = "enrichment"
 
         # Write function that uses the selection indices to slice points and compute stats
         def selected_histogram(index):
@@ -362,7 +364,7 @@ class PolarMapper(object):
 
             t = selected.table()
             html = t.dframe().sort_values(
-                "enrichment", ascending=False).head(50).drop(
+                ENRICHMENT, ascending=False).head(50).drop(
                     ["x", "y"], axis=1).set_index("kmer").to_html()
             return hv.Div("<div>{}</div>".format(html)).opts(plot=dict(
                 width=200))
@@ -460,7 +462,7 @@ class PolarMapper(object):
             selected = points.iloc[index]
             if not index:
                 selected = points
-            d = selected.data.sort_values("enrichment", ascending=False).kmer
+            d = selected.data.sort_values(ENRICHMENT, ascending=False).kmer
             if len(d) < 50:
                 counts = align_logo(list(d)).T
             else:

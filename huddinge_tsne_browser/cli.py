@@ -24,7 +24,8 @@ def cli(args=None):
         "-t",
         "--html",
         help="Output as html file  [default:%(default)s]",
-        default="huddinge_tsne.html")
+        #    default="huddinge_tsne.html"
+    )
 
     parser.add_argument(
         "-j",
@@ -55,4 +56,5 @@ def cli(args=None):
                 logging.getLogger().handlers[0].formatter)
             logging.getLogger().addHandler(log_file_handler)
 
+    logging.info("Ran cli")
     return args
