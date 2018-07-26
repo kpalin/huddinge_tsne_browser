@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import logging as log
 from huddinge_tsne_browser import cli
-from .tsne_mapper import TsneMapper, PolarMapper
+from .tsne_mapper import TsneMapper
+from .polarmapper import PolarMapper
 from .huddinge_browser import huddinge_app
 
 import holoviews as hv
@@ -14,7 +15,7 @@ def main():
     log.info("Running in main()")
 
     log.info(str(args))
-    data = PolarMapper(args.input)
+    data = PolarMapper(args.input,args.enrichment_column)
     
     if args.json_config is not None:
         data.read_config(args.json_config)

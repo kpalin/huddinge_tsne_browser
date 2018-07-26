@@ -17,6 +17,12 @@ def cli(args=None):
         required=True)
 
     parser.add_argument(
+        "-e",
+        "--enrichment_column",
+        help="Name of the column providing values for the kmer enrichment [default:%(default)s]",
+            default="mean_ln_fold")
+
+    parser.add_argument(
         "-o",
         "--output",
         help="Store the input in this file along with the sequence placements")

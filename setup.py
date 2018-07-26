@@ -1,6 +1,7 @@
 from setuptools import setup
 
 requirements = [
+    "setuptools"
     # package requirements go here
 ]
 
