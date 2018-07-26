@@ -12,6 +12,11 @@ build:
   # "skip: True  # [not win]" to limit to Windows.
 #  script:  python setup.py install --single-version-externally-managed --record=record.txt
 test: py.test
+
+extra:
+  channels:
+    - kpalin
+
 requirements:
   build:
     - python
@@ -24,8 +29,9 @@ requirements:
     - scikit-learn
     - holoviews >=1.9.2
     - jellyfish
-    - datashader
+#    - datashader
     - svgwrite
+    - pyhuddinge >=0.2
 
 
 test:

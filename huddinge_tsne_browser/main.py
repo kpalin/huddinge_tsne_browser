@@ -13,14 +13,18 @@ def main():
     args = cli.cli()
     log.info("Running in main()")
 
-    data = PolarMapper(args.input, args.json_config)
-    print(args)
+    log.info(str(args))
+    data = PolarMapper(args.input)
+    
+    if args.json_config is not None:
+        data.read_config(args.json_config)
+
     log.info("Executing module %s", __name__)
     if args.html is not None:
         log.info("Outputting %s", args.html)
         from bokeh.io import output_file, show, save
 
-        save(data.plot_polar("HNF4A").html(), args.html)
+        save(data.plot_polar().html(), args.html)
     else:
         log.info("Serving plots from main")
         serve_embedding(data)
@@ -61,9 +65,4 @@ def serve_embedding(data):
 
 if __name__ == "__main__":
     main()
-else:
-    main()
-    #log.info("serving plots")
-    #huddinge_app(data)
-    #print("Serving plots outside main")
-    #serve_embedding(data)
+    raise ValueError("HERE")
