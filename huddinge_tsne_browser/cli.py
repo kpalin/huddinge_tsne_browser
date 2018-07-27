@@ -29,9 +29,9 @@ def cli(args=None):
     
     parser.add_argument(
         "-t",
-        "--html",
-        help="Output as html file  [default:%(default)s]",
-        #    default="huddinge_tsne.html"
+        "--html",metavar="FILEBASE",type=str,
+        help="Output as FILEBASE.html and FILEBASE.js [default:%(default)s]",
+        #    default="huddinge_tsne"
     )
 
     parser.add_argument(

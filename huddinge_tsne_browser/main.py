@@ -10,8 +10,9 @@ import holoviews as hv
 hv.extension('bokeh')
 
 
-def main():
-    args = cli.cli()
+def main(args=None):
+    
+    args = cli.cli(args)
     log.info("Running in main()")
 
     log.info(str(args))
@@ -25,7 +26,7 @@ def main():
         log.info("Outputting %s", args.html)
         from bokeh.io import output_file, show, save
 
-        save(data.plot_polar().html(), args.html)
+        data.save_bokeh_points(args.html)
     else:
         log.info("Serving plots from main")
         serve_embedding(data)

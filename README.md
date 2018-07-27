@@ -13,10 +13,11 @@ maxima. The representative is the most enriched reached with steps of
 huddinge size one.  The points are colored according to their distance
 to the representative. The circle is at the highest enrichment peak.
 
-For running the software you need the kmer huddinge distances (all
-pairs, minimum with reverse complement), kmer counts calculated with
-jellyfish and a config file to tell the software what to do. Script
-`examples/huddinge_example.sh` in this repo will get you started.
+
+
+
+For running the software you need a tab separated file with header line, kmers on first column and annotation and enrichment number values on other columns. Example file is at `examples/enriched_kmers_z99_HOXB13.tsv`
+
 
 
 
@@ -33,4 +34,4 @@ covering most of them. Those are easiest to install from conda-forge and biocond
 
 If you have [bioconda](https://bioconda.github.io/) installed (you should), then it's enough to say
 
-	conda install -c kpalin huddinge_tsne_browser
+	conda install -c kpalin huddinge_tsne_browser pyhuddinge

@@ -25,7 +25,7 @@ def tsne_laidout():
     else:
         d = TsneMapper(os.path.join(dir, "TFAP2A-head-1000.dist"))
         d.compute_mds()
-        d.write_data(laidout_file)
+        #d.write_data(laidout_file)
 
     return d
 
@@ -58,7 +58,7 @@ def test_layout_tsne(tsne_obj):
     assert tsne_obj.laidout()
 
 
-#@pytest.mark.skip(reason="Slow test")
+@pytest.mark.skip(reason="Slow test")
 def test_layout_spectral(tsne_obj):
     tsne_obj.compute_spectral()
     assert tsne_obj.laidout()

@@ -165,7 +165,11 @@ class PolarMapper(object):
 
         log.info("Sequences: "+str(self.tsne_obj[binder].sequences.head()))
         self.N = len(self.tsne_obj[binder].sequences)
-        if self.N<5:
+        if self.N<=1:
+            log.critical("At most one sequence found! Will not work.")
+            import sys
+            sys.exit(1)
+        if self.N<10:
             log.warning("Found very few sequences: "+str(self.tsne_obj[binder].sequences))
 
         self.sole_binder = binder
@@ -251,13 +255,12 @@ class PolarMapper(object):
         jittered_D = ssd.squareform(jittered_dist)
 
         def circle_distances(r_thetas):
-
             import numpy as np
             import scipy.spatial.distance as ssd
 
             r, thetas = r_thetas[0], r_thetas[1:]
             cartes = np.array([r * np.cos(thetas), r * np.sin(thetas)]).T
-
+            cartes = np.vstack([[0.0,r],cartes]) # Top anchor always faces north.
             D = ssd.pdist(cartes, "euclidean")
             return D
 
@@ -267,9 +270,9 @@ class PolarMapper(object):
         import scipy.optimize as so
         init_params = np.append(
             np.array([np.max(jittered_D) / 2]),
-            np.random.uniform(0, 2 * np.pi, size=len(anchors)))
+            np.random.uniform(0, 2 * np.pi, size=len(anchors)-1))
 
-        bounds = [(0.1, None)] + [(0.0, 2.0 * np.pi)] * len(anchors)
+        bounds = [(0.1, None)] + [(0.0, 2.0 * np.pi)] * (len(anchors)-1)
 
         #opt = so.minimize(ssq_distance_diff,x0=init_params,bounds = bounds)
         opt = so.basinhopping(
@@ -279,7 +282,7 @@ class PolarMapper(object):
 
         log.info(opt.message)
         r = opt.x[0]
-        thetas = pd.Series(opt.x[1:], index=anchors)
+        thetas = pd.Series(np.concatenate(([np.pi/2.0],opt.x[1:])), index=anchors)
         D = pd.DataFrame(
             ssd.squareform(circle_distances(opt.x)),
             index=anchors,
@@ -480,7 +483,7 @@ class PolarMapper(object):
 
         return r.cols(2)
 
-    def save_bokeh_points(self,binder,output_file_name):
+    def save_bokeh_points(self,output_file_name,binder=None):
         """Write the points plot to output_file_name.html. This plot
         can be included in other HTML pages."""
         import holoviews as hv
@@ -490,6 +493,8 @@ class PolarMapper(object):
 
         from bokeh.embed import autoload_static
 
+        if binder is None:
+            binder = self.sole_binder
 
         renderer = hv.renderer('bokeh')
 
@@ -518,10 +523,11 @@ class PolarMapper(object):
         </html>"""
         
         from datetime import datetime
+        import os.path
         import pkg_resources
         js_name   = "./{}.js".format(output_file_name)
         html_name = "./{}.html".format(output_file_name)
-        js, tag = autoload_static(plot, CDN, js_name)
+        js, tag = autoload_static(plot, CDN, os.path.basename(js_name))
 
         with open(js_name,"w") as js_f, open(html_name,"w") as html_f:
             js_f.write(js)
@@ -590,8 +596,18 @@ class PolarMapper(object):
 
 
         p_data = single_rep.reset_index()
-        p_data.columns = map(str,p_data.columns)
-        hover = HoverTool(tooltips=[(c, "@{"+c+"}") for c in p_data.columns \
+
+
+        from .util import isidentifier
+        col_renamer = {x:"A"+x.translate(str.maketrans(",() '`'","_______")).strip("_")+"B" for x in p_data.columns if not isidentifier(x)}
+
+
+        col_renamer_r = {y:x for x,y in col_renamer.items()}
+
+        p_data.columns = [col_renamer.get(x,x) for x in p_data.columns]
+
+        log.info(p_data.columns)
+        hover = HoverTool(tooltips=[(col_renamer_r.get(c,c), "@{"+c+"}") for c in p_data.columns \
                                          if c not in ("x","y","distance","theta")])
 
         points = hv.Points(
