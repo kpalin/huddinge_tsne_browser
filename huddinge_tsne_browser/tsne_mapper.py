@@ -178,8 +178,6 @@ class TsneMapper(object):
 
     def _get_matrix(self):
         if not hasattr(self, "_matrix"):
-            import pandas as pd
-            import numpy as np
             import pyhuddinge as ph
 
             log.info("Memory usage before matrix formatting %gMB" %

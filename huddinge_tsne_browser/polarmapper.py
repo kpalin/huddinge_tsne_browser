@@ -73,6 +73,8 @@ class PolarMapper(object):
         import json
         import pandas as pd
         import os.path
+        import logging as log
+        from .tsne_mapper import TsneMapper, read_jf
 
         if not os.path.exists(distance_file):
             raise ValueError(
@@ -142,14 +144,27 @@ class PolarMapper(object):
         from .tsne_mapper import TsneMapper
 
         self.data = dict()
-        data = pd.read_table(input_file,sep="\t")
+        data = pd.read_table(input_file,sep="\t",dtype={self.enrichment_column:float})
         kmer_name = data.columns[0]
         if not data[kmer_name].str.contains("^[ACGT]+$").all():
             idx = ~data[kmer_name].str.contains("^[ACGT]+$")
             false_kmer_eg = data.loc[idx,kmer_name].head()
             log.critical("First column ({}) contains non ACGT kmers (e.g. {})!".format(kmer_name," ".join(false_kmer_eg)))
-        else:
-            data = data.set_index(kmer_name)
+            raise ValueError("Non nucleotide kmers")
+
+        if data[kmer_name].str.len().var()>1e-5:
+            log.critical("Variable length kmers. Not equipped for those at this time.")
+            raise ValueError("Variable length kmers")
+
+
+        data = data.set_index(kmer_name)
+
+        if data[self.enrichment_column].isnull().any():
+            log.critical("Some values on '{}' column are null: {}".format(self.enrichment_column,
+                str(data.loc[data[self.enrichment_column].isnull()])))
+            raise ValueError("Null value input")
+
+        
 
         self.data[binder] = data
         self.data = pd.concat(self.data)
@@ -170,7 +185,7 @@ class PolarMapper(object):
             import sys
             sys.exit(1)
         if self.N<10:
-            log.warning("Found very few sequences: "+str(self.tsne_obj[binder].sequences))
+            log.warning("Found very few ({} that is) sequences: ".format(len(self.tsne_obj[binder].sequences)))
 
         self.sole_binder = binder
         self._binders = [ binder ]
@@ -193,7 +208,7 @@ class PolarMapper(object):
         huddinge_mat = self.tsne_obj[binder].matrix
 
         skmers = self.selected_kmers.loc[binder,self.enrichment_column]
-        print(skmers.head())
+
         candidates = skmers.sort_values(ascending=False).iteritems()
         #Find local maxima
         local_maxima = []
@@ -207,8 +222,8 @@ class PolarMapper(object):
                          format(max_local_dist, kmer))
                 rep_maxima.loc[kmer] = kmer
                 continue
-            if neighbours.max() < v:
-                # All neighbours are lower, hence we have local maxima
+            if neighbours.max() <= v:
+                # All neighbours are lower (or equal), hence we have local maxima
                 local_maxima.append(kmer)
                 new_neighbours = set(neighbours.index) - set(
                     rep_maxima.loc[rep_maxima.notnull()].index)
@@ -227,8 +242,6 @@ class PolarMapper(object):
 
                 rep_maxima.loc[[kmer]] = skmers.loc[c_reps].idxmax()
 
-                #print(rep_maxima.loc[list(allocated_neighbours)])
-                #log.info("Skipping non maximal locus {}".format(kmer))
         rep_maxima.index.name = "kmer"
         rep_maxima.name = "representative"
         assert (skmers.loc[rep_maxima.index].values <=
@@ -305,7 +318,7 @@ class PolarMapper(object):
             assert binder in self._binders
 
         
-        points, enrichment_r = self.plot_points(binder)
+        points, theta_angle, enrichment_r = self.plot_points(binder)
 
 
 
@@ -474,7 +487,7 @@ class PolarMapper(object):
 
         ellipse_diameter = enrichment_r.max() * 2
         r = points.hist(dimension=self.enrichment_column) * hv.Ellipse(
-            0, 0, ellipse_diameter) << hv.DynamicMap(
+            0, 0, ellipse_diameter) * self.kmer_annotation_overlay(theta_angle,enrichment_r) << hv.DynamicMap(
                 selected_histogram, streams=[selection])
         #r = r.relabel(binder)
         r= r+hv.DynamicMap(selected_table, streams=[selection]) + \
@@ -498,10 +511,10 @@ class PolarMapper(object):
 
         renderer = hv.renderer('bokeh')
 
-        points, enrichment_r = self.plot_points(binder, extra_tools=[])
+        points, theta_angle, enrichment_r = self.plot_points(binder, extra_tools=[])
         ellipse_diameter = enrichment_r.max() * 2
 
-        points = points* hv.Ellipse(0, 0, ellipse_diameter) 
+        points = points* self.kmer_annotation_overlay(theta_angle, enrichment_r) *hv.Ellipse(0, 0, ellipse_diameter) 
         #points = points.relabel(binder)
         # Convert to bokeh figure then save using bokeh
         plot = renderer.get_plot(points).state
@@ -635,11 +648,11 @@ class PolarMapper(object):
         #    deg = rad/np.pi*180
         #    points = points*hv.Text(0,0,kmer,rotation=deg)
 #        hv.Text(0, -30, 'Quadratic Curve',rotation=90)
-        points = points * self.kmer_annotation_overlay(theta_angle, enrichment_r)
+        
 
 
 
-        return points.relabel(binder), enrichment_r
+        return points.relabel(binder),theta_angle, enrichment_r
 
     def kmer_annotation_overlay(self, theta_angle,enrichment_r):
         import holoviews as hv

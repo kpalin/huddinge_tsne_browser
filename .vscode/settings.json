@@ -4,7 +4,6 @@
     "python.unitTest.nosetestsEnabled": false,
     "python.pythonPath": "/home/kpalin/miniconda3/envs/huddinge_tsne_dev/bin/python3",
     "python.unitTest.pyTestArgs": [
-        "--exitfirst",
         "--verbose",
         "tests",
     ]

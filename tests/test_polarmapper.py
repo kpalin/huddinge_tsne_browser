@@ -49,7 +49,7 @@ def test_plot_polar(polarmap_obj):
 def test_plot_points(polarmap_obj):
     import holoviews as hv
     import os.path
-    points, enrichment_r = polarmap_obj.plot_points("Default")
+    points, _,_ = polarmap_obj.plot_points("Default")
     
     hv.renderer('bokeh').save(points,"test_enrichment_kmers_HOXB13_points_bare")
 
@@ -57,7 +57,6 @@ def test_plot_points(polarmap_obj):
 
 
 def test_bokeh_points(polarmap_obj):
-    import holoviews as hv
     import os.path
     polarmap_obj.save_bokeh_points("test_enrichment_kmers_HOXB13_points")
 

@@ -24,8 +24,6 @@ def main(args=None):
     log.info("Executing module %s", __name__)
     if args.html is not None:
         log.info("Outputting %s", args.html)
-        from bokeh.io import output_file, show, save
-
         data.save_bokeh_points(args.html)
     else:
         log.info("Serving plots from main")
@@ -33,7 +31,7 @@ def main(args=None):
 
 
 def serve_embedding(data):
-    from .huddinge_browser import HuddingBrowser
+    
     import holoviews as hv
     import traceback
 
@@ -67,4 +65,4 @@ def serve_embedding(data):
 
 if __name__ == "__main__":
     main()
-    raise ValueError("HERE")
+

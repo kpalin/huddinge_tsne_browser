@@ -8,8 +8,7 @@ def tsne_obj():
     from huddinge_tsne_browser.tsne_mapper import TsneMapper
     import os.path
     dir = os.path.dirname(__file__)
-    fname = os.path.join(dir, "../examples/enriched_kmers_z99_HOXB13.tsv")
-
+ 
     d = TsneMapper(os.path.join(dir, "TFAP2A-head-1000.dist"))
     return d
 
@@ -118,7 +117,6 @@ def test_subsetting_distances(tsne_obj, seqs):
     unique=True))
 def test_layout_write_read(tsne_obj, tmpdir, seqs):
     from copy import deepcopy
-    import os.path
     import numpy as np
     tsne_obj = deepcopy(tsne_obj)
 

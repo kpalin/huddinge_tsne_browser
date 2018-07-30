@@ -16,14 +16,21 @@ to the representative. The circle is at the highest enrichment peak.
 
 
 
-For running the software you need a tab separated file with header line, kmers on first column and annotation and enrichment number values on other columns. Example file is at `examples/enriched_kmers_z99_HOXB13.tsv`
+For running the software you need a tab separated file with header line, kmers on first column and annotation and enrichment number values on other columns. Example file is at `examples/enriched_kmers_z99_HOXB13.tsv`. You should get a session:
+
+```
+$ huddinge_tsne_browser -i examples/enriched_kmers_z99_HNF4A.tsv -t  enriched_kmers_HNF4A 2>/dev/null 
+<script src="enriched_kmers_HNF4A.js" id="bd73b7e5-bd13-42c5-8a5c-c0bd4e3a1914"></script>
+$ ls enriched_kmers_HNF4A*
+enriched_kmers_HNF4A.html  enriched_kmers_HNF4A.js
+$
+```
+
+The file `enriched_kmers_HNF4A.html` contains a sample HTML file you can open in a web browser.  To embed the plot in your own file, copy-paste the script tag from standard output where you want to have the plot.
 
 
 
 
-To use the package efficiently, you should download, install and run the
-jupyter notebook examples/Huddinge TSNE browser 2.ipynb from the github
-repository. A static sample can be [browsed in nbviewer](http://nbviewer.jupyter.org/github/kpalin/huddinge_tsne_browser/blob/master/examples/Huddinge%20TSNE%20browser%202.ipynb)
 
 
 Installation
