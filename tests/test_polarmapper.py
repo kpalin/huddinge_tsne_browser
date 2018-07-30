@@ -51,9 +51,9 @@ def test_plot_points(polarmap_obj):
     import os.path
     points, enrichment_r = polarmap_obj.plot_points("Default")
     
-    hv.renderer('bokeh').save(points,"test_enrichment_kmers_HOXB13_points")
+    hv.renderer('bokeh').save(points,"test_enrichment_kmers_HOXB13_points_bare")
 
-    assert os.path.exists("test_enrichment_kmers_HOXB13_points.html")
+    assert os.path.exists("test_enrichment_kmers_HOXB13_points_bare.html")
 
 
 def test_bokeh_points(polarmap_obj):
