@@ -27,7 +27,7 @@ before_install:
   - pip install coveralls
 install:
   - conda build  .
-  - conda install --use-local huddinge_tsne_browser
+  - conda install -c kpalin --use-local huddinge_tsne_browser
   - conda info -a
 script:
   - conda install -y hypothesis
