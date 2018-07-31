@@ -16,10 +16,10 @@ to the representative. The circle is at the highest enrichment peak.
 
 
 
-For running the software you need a tab separated file with header line, kmers on first column and annotation and enrichment number values on other columns. Example file is at `examples/enriched_kmers_z99_HOXB13.tsv`. You should get a session:
+For running the software you need a tab separated file with header line, kmers on first column and annotation and enrichment number values on other columns. Example file is at `tests/enriched_kmers_z99_HOXB13.tsv`. You should get a session:
 
 ```
-$ huddinge_tsne_browser -i examples/enriched_kmers_z99_HNF4A.tsv -t  enriched_kmers_HNF4A 2>/dev/null 
+$ huddinge_tsne_browser -i tests/enriched_kmers_z99_HNF4A.tsv -t  enriched_kmers_HNF4A 2>/dev/null 
 <script src="enriched_kmers_HNF4A.js" id="bd73b7e5-bd13-42c5-8a5c-c0bd4e3a1914"></script>
 $ ls enriched_kmers_HNF4A*
 enriched_kmers_HNF4A.html  enriched_kmers_HNF4A.js

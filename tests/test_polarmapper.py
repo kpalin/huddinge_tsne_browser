@@ -8,7 +8,7 @@ def polarmap_obj():
     from huddinge_tsne_browser.polarmapper import PolarMapper
     import os.path
     dir = os.path.dirname(__file__)
-    fname = os.path.join(dir, "../examples/enriched_kmers_z99_HOXB13.tsv")
+    fname = os.path.join(dir, "enriched_kmers_z99_HOXB13.tsv")
     d = PolarMapper(fname)
     return d
 
