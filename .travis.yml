@@ -20,6 +20,7 @@ before_install:
   - conda config --append channels defaults
   - conda config --append channels conda-forge
   - conda config --append channels bioconda
+  - conda config --append channels kpalin
   - conda update -q conda
   - conda install conda-build
   - conda install anaconda-client
@@ -27,7 +28,7 @@ before_install:
   - pip install coveralls
 install:
   - conda build  .
-  - conda install -c kpalin --use-local huddinge_tsne_browser
+  - conda install --use-local huddinge_tsne_browser
   - conda info -a
 script:
   - conda install -y hypothesis
