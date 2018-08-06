@@ -28,8 +28,9 @@ $
 
 The file `enriched_kmers_HNF4A.html` contains a sample HTML file you can open in a web browser.  To embed the plot in your own file, copy-paste the script tag from standard output where you want to have the plot.
 
-
-
+The example plots can be viewed online at:
+- [HOXB13](https://kpalin.github.io/huddinge_tsne_browser/examples/enriched_kmers_z99_HOXB13.html)
+- [HNF4A](https://kpalin.github.io/huddinge_tsne_browser/examples/enriched_kmers_z99_HNF4A.html)
 
 
 
