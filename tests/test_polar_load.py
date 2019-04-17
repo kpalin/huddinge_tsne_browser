@@ -1,4 +1,4 @@
-from hypothesis import given,assume,reproduce_failure
+from hypothesis import given,assume,reproduce_failure,settings
 from hypothesis.strategies import text,floats,integers
 import pytest
 from hypothesis.extra.pandas import column, data_frames, indexes
@@ -26,6 +26,7 @@ tsv_strategy_finite =integers(min_value=2,max_value=15).flatmap(lambda n:data_fr
 
 
 #@pytest.mark.skip(reason="Fails for many things")
+@settings(deadline=3000)
 @given(tsv_strategy_finite)
 def test_fileread(tmpdir,dataf):
     from huddinge_tsne_browser.polarmapper import PolarMapper
@@ -36,7 +37,9 @@ def test_fileread(tmpdir,dataf):
     d = PolarMapper(fname)
     d.tsne_obj[d.sole_binder].matrix.head()
 
-
+ 
+#@reproduce_failure('4.10.0', b'AXic42FkQAGMmLz/H7DIAAArCgIA')
+@settings(deadline=3000)
 @given(tsv_strategy)
 def test_fileread_fail(tmpdir,dataf):
     assume(dataf.mean_ln_fold.isnull().any())

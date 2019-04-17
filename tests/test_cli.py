@@ -1,5 +1,5 @@
 import pytest
-from hypothesis import given
+from hypothesis import given,settings
 import hypothesis.strategies as st
 from huddinge_tsne_browser import cli
 
@@ -12,7 +12,7 @@ def test_cli_no_input():
     with pytest.raises(SystemExit):
         assert cli.cli([]) is None
 
-
+@settings(deadline=None)
 @given(st.sampled_from(["HOXB13","HNF4A"]),st.sampled_from(["mean_ln_fold","fold_z"]))
 def test_main_make_html(binder,enrich_column):
     import os

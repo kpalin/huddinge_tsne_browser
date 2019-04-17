@@ -5,13 +5,6 @@ package:
 source:
   path: ..
 
-build:
-  # If the installation is complex, or different between Unix and Windows, use
-  # separate bld.bat and build.sh files instead of this key.  Add the line
-  # "skip: True  # [py<35]" (for example) to limit to Python 3.5 and newer, or
-  # "skip: True  # [not win]" to limit to Windows.
-#  script:  python setup.py install --single-version-externally-managed --record=record.txt
-test: py.test
 
 extra:
   channels:
@@ -25,11 +18,11 @@ requirements:
     - psutil
     - python
     - pandas
-    - bokeh
+    - bokeh 
     - scikit-learn
-    - holoviews >=1.9.2
+    - holoviews <=1.12.0
+#    - holoviews  >=1.9.2
     - jellyfish
-#    - datashader
     - svgwrite
     - pyhuddinge >=0.2
     - setuptools
@@ -42,7 +35,7 @@ test:
   source_files:
     - tests
   commands:
-    - py.test tests/
+    - pytest tests/
 
 
 about:

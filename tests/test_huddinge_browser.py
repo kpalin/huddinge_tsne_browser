@@ -1,5 +1,5 @@
 import pytest
-from hypothesis import given
+from hypothesis import given,settings
 import hypothesis.strategies as st
 
 
@@ -69,12 +69,15 @@ def test_layout_clear(tsne_laidout):
     assert not tsne_laidout.laidout()
 
 
-@given(seqs=st.lists(
-    st.sampled_from(list(tsne_obj().sequences[0])),
-    min_size=1,
-    max_size=10,
-    unique=True))
-def test_subsetting_count(tsne_obj, seqs):
+
+@given(st.data())
+def test_subsetting_count(tsne_obj, data):
+    seqs = data.draw(st.lists(
+        st.sampled_from(list(tsne_obj.sequences[0])),
+        min_size=1,
+        max_size=10,
+        unique=True) )
+
     from copy import deepcopy
     tsne_obj = deepcopy(tsne_obj)
 
@@ -82,13 +85,15 @@ def test_subsetting_count(tsne_obj, seqs):
     assert len(tsne_obj) == len(seqs)
     assert set(seqs) == set(tsne_obj.sequences[0])
 
+@settings(deadline=3000)
+@given(st.data())
+def test_subsetting_distances(tsne_obj, data):
+    seqs = data.draw(st.lists(
+        st.sampled_from(list(tsne_obj.sequences[0])),
+        min_size=1,
+        max_size=10,
+        unique=True) )
 
-@given(seqs=st.lists(
-    st.sampled_from(list(tsne_obj().sequences[0])),
-    min_size=1,
-    max_size=10,
-    unique=True))
-def test_subsetting_distances(tsne_obj, seqs):
     from copy import deepcopy
     tsne_old = deepcopy(tsne_obj)
 
@@ -110,12 +115,13 @@ def test_subsetting_distances(tsne_obj, seqs):
 
 
 @pytest.mark.skip(reason="Slow test")
-@given(seqs=st.lists(
-    st.sampled_from(list(tsne_obj().sequences[0])),
-    min_size=3,
-    max_size=10,
-    unique=True))
-def test_layout_write_read(tsne_obj, tmpdir, seqs):
+@given(st.data())
+def test_layout_write_read(tsne_obj, tmpdir, data):
+    seqs = data.draw(st.lists(
+        st.sampled_from(list(tsne_obj.sequences[0])),
+        min_size=3,
+        max_size=10,
+        unique=True) )
     from copy import deepcopy
     import numpy as np
     tsne_obj = deepcopy(tsne_obj)
