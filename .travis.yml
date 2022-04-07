@@ -7,7 +7,6 @@ sudo: required
 before_install:
   - sudo apt-get update
   - sudo apt-get install --yes libboost-all-dev
-install:
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
     else
@@ -21,15 +20,18 @@ install:
   - conda config --append channels defaults
   - conda config --append channels conda-forge
   - conda config --append channels bioconda
+  - conda config --append channels kpalin
   - conda update -q conda
   - conda install conda-build
   - conda install anaconda-client
   - conda install pytest-cov
   - pip install coveralls
-  - conda build .
+install:
+  - conda build  .
   - conda install --use-local huddinge_tsne_browser
   - conda info -a
 script:
+  - conda install -y hypothesis
   - pytest -v --cov=huddinge_tsne_browser tests
 after_success:
   - coveralls

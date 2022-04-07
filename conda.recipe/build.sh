@@ -15,7 +15,3 @@ set -o pipefail
 
 
 python setup.py install --single-version-externally-managed --record=record.txt
-
-cd MODER
-make
-mv all_pairs_huddinge $PREFIX/bin/

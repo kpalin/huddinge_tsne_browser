@@ -8,30 +8,37 @@ Created at Mon Dec 18 15:15:47 2017 by Kimmo Palin <kpalin@merit.ltdk.helsinki.f
 
 def cli(args=None):
     import argparse
-    parser = argparse.ArgumentParser(description="Launch tsne browser")
+    parser = argparse.ArgumentParser(description="Generate bokeh plot from an input tsv file")
 
     parser.add_argument(
         "-i",
         "--input",
-        help="Input file. Either with or without TSNE layout. Without version can be generated with all_pairs_huddinge  [default:%(default)s]",
+        help="Input file. Tab separated file with header. First column must be the nucleotide sequence and remaining columns annotation values per nucletide kmer  [default:%(default)s]",
         required=True)
+
+    parser.add_argument(
+        "-e",
+        "--enrichment_column",
+        help="Name of the column providing values for the kmer enrichment [default:%(default)s]",
+            default="mean_ln_fold")
 
     parser.add_argument(
         "-o",
         "--output",
         help="Store the input in this file along with the sequence placements")
+    
     parser.add_argument(
         "-t",
-        "--html",
-        help="Output as html file  [default:%(default)s]",
-        default="huddinge_tsne.html")
+        "--html",metavar="FILEBASE",type=str,
+        help="Output as FILEBASE.html and FILEBASE.js [default:%(default)s]",
+        #    default="huddinge_tsne"
+    )
 
     parser.add_argument(
-        "-k",
-        "--kmers",
-        help="Additional annotation kmer data. Currently only jellyfish output. Format name:/path/to/file.jf  [default:%(default)s]",
-        default=[],
-        action="append")
+        "-j",
+        "--json_config",
+        help="json format configuration file  [default:%(default)s]",
+        )
 
     parser.add_argument(
         "-V",
@@ -56,19 +63,5 @@ def cli(args=None):
                 logging.getLogger().handlers[0].formatter)
             logging.getLogger().addHandler(log_file_handler)
 
-    kmers_args = []
-    from os.path import basename, exists
-    for x in args.kmers:
-        p = x.split(":")
-        if len(p) == 1:
-            p = (basename(p[0]).split(".")[0], p[0])
-        elif len(p) == 2:
-            p = tuple(p)
-        else:
-            raise ValueError(str(p))
-        if not exists(p[1]):
-            raise ValueError(p[1])
-        kmers_args.append(p)
-    args.kmers = kmers_args
-
+    logging.info("Ran cli")
     return args

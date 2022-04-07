@@ -1,0 +1,27 @@
+{
+   "_config": {
+      "kmer_size": 8
+   }, 
+   "HOXB13": [
+      {
+         "fasta": "ERR1003874.fastq.gz", 
+         "filename": "ERR1003874.8mer_counts.jf", 
+         "cycle": 1
+      }, 
+      {
+         "fasta": "ERR1003876.fastq.gz", 
+         "filename": "ERR1003876.8mer_counts.jf", 
+         "cycle": 2
+      }, 
+      {
+         "fasta": "ERR1003878.fastq.gz", 
+         "filename": "ERR1003878.8mer_counts.jf", 
+         "cycle": 3
+      }, 
+      {
+         "fasta": "ERR1003880.fastq.gz", 
+         "filename": "ERR1003880.8mer_counts.jf", 
+         "cycle": 4
+      }
+   ]
+}

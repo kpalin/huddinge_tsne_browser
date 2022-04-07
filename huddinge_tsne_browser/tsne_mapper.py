@@ -16,27 +16,25 @@ def read_jf(fname):
     return j, d.set_index("Sequence").Count
 
 
+
+
 class TsneMapper(object):
     """Reader and tsne transformer for huddinge distance files
     """
 
-    def __init__(self, input_file=None):
+    def __init__(self, input_file=None, force_distances=False):
         """
         
         Arguments:
         - `input_file`:
         """
 
-        #if input_file is None:
-        #    import pkg_resources
-        #    input_file = pkg_resources.resource_filename(
-        #        "huddinge_tsne_browser", "resources/kmer8_iters4k.tsne")
-
         self._input_file = input_file
         self.data_dims = []
         self.coord_dims = ["tsne0", "tsne1"]
 
-        self.read_data()
+        if input_file is not None:
+            self.read_data(force_distances)
 
     def __len__(
             self, ):
@@ -44,8 +42,7 @@ class TsneMapper(object):
         """
         return len(self.sequences)
 
-    def read_data(
-            self, ):
+    def read_data(self, force_distances=False):
         """Read data from 'moder'
         """
         import pandas as pd
@@ -57,13 +54,13 @@ class TsneMapper(object):
         p = l.split()
         self.N = int(p[0])
         if len(p) > 1:
-            self.KLdivergence_ = float(p[1])
+            self.fit_measure_ = float(p[1])
 
         l = [fin.readline() for _ in range(self.N)]
         bytes_read += sum(len(x) for x in l)
 
         self.sequences = pd.read_table(
-            StringIO("".join(l)),
+            StringIO(u"".join(l)),
             nrows=self.N,
             sep="\t",
             header=None,
@@ -78,7 +75,8 @@ class TsneMapper(object):
             self.embedding = self.sequences.set_index(0)
             self.embedding.columns = self.coord_dims
             self.embedding.index.name = "Sequence"
-        else:
+
+        if (not hasattr(self, "embedding")) or force_distances:
             log.info("Memory usage %gMB" % (util.memory_usage()))
             log.info("Reading distances.")
             self.read_distances(fin)
@@ -103,6 +101,33 @@ class TsneMapper(object):
         self.data_dims.extend(annot)
         self.embedding = new_emb
 
+    def focus_sequences(self, prop_signal=0.1, prop_background=0.01):
+        "Return list of sequences including top prop_signal of highest count sequences for each data value and  prop_background of random sequences"
+        seqs = set(
+            self.sequences.sample(int(prop_background * len(self.sequences)))[
+                0])
+        lims = self.embedding[self.data_dims].quantile(1 - prop_signal)
+        for d, l in lims.iteritems():
+            s = self.embedding.loc[self.embedding[d] >= l].index
+            seqs.update(s)
+
+        return list(sorted(seqs))
+
+    def subset_sequences(self, seqs):
+        "Drop all information about other sequences but seqs"
+        keepers = self.sequences[0].isin(seqs).nonzero()[0]
+
+        log.info("Keeping a subset of {} sequences.".format(len(keepers)))
+ 
+        if hasattr(self, "_matrix"):
+            del (self._matrix)
+
+        self.sequences = self.sequences.iloc[keepers]
+        self.N = len(self.sequences)
+
+        if hasattr(self, "embedding"):
+            self.embedding = self.embedding.reindex(index=seqs)
+
     def add_kmercounts(self, name, filename):
         """
         
@@ -113,7 +138,8 @@ class TsneMapper(object):
         _, counts = read_jf(filename)
 
         try:
-            self.embedding[name] = counts.loc[self.embedding.index].fillna(0)
+            self.embedding[name] = counts.reindex(
+                index=self.embedding.index, fill_value=0)
             if name not in self.data_dims:
                 self.data_dims.append(name)
         except KeyError as e:
@@ -124,74 +150,45 @@ class TsneMapper(object):
 
     def read_distances(self, fin):
         """Read distance data from open file fin
-        
+
+        Doesn't do anything since the distances are computed online.
+
         Arguments:
         - `fin`:
         """
-        import pandas as pd
-        import numpy as np
-
-        d_pos = fin.tell()
-        d = np.fromfile(fin, dtype="uint8", count=-1)
-        assert len(d) == self.N * (self.N - 1) / 2
-
-        self.distances = d
-
-        #self.distances = pd.DataFrame(M,index=np.arange(self.N),columns=np.arange(self.N))
-
-        #self.distances = pd.read_table(
-        #    fin,
-        #    sep="\t",
-        #    header=None,
-        #    engine="python",
-        #    dtype={0: int,
-        #           1: int,
-        #           2: float})
-
-        #assert len(self.distances) == self.N * (self.N - 1) / 2
+        pass
 
     def _get_kmer_size(self):
         return len(self.sequences[0])
 
     kmer_size = property(_get_kmer_size)
 
+    def clear_layout(self):
+        "Remove layout information"
+        self.sequences = self.sequences[[0]]
+        self.embedding = self.embedding.drop(self.coord_dims, axis=1)
+        del (self.fit_measure_)
+
     def laidout(
             self, ):
         """Are the sequences laid out properly
         """
-        return self.sequences.shape[1] > 1
+        return hasattr(self, "embedding") and set(self.coord_dims).issubset(
+            self.embedding.columns)
 
     def _get_matrix(self):
         if not hasattr(self, "_matrix"):
-            import numpy as np
+            import pyhuddinge as ph
+
             log.info("Memory usage before matrix formatting %gMB" %
                      (util.memory_usage()))
 
-            log.info("Reshaping..")
-            log.info("sizeof(distances) = %gMB" % (self.distances.nbytes /
-                                                   (2.0**20)))
-            M = np.zeros((self.N, self.N), dtype="float32")
-            log.info("sizeof(M) = %gMB" % (M.nbytes / (2.0**20)))
+            distances = ph.all_pairs_huddinge_distance(self.sequences[0],reverse_complements=True)
 
-            idx = np.tril_indices(self.N, k=-1)
-            log.info("sizeof(idx) = %gMB" % (sum(x.nbytes
-                                                 for x in idx) / (2.0**20)))
-
-            M[idx] = self.distances
-
-            M += M.T
+            M = ph.squareform(distances,self.sequences[0])
             self._matrix = M
 
-            # Due to output format of all_pairs_huddinge, the following does *not* work.
-            #from scipy.spatial.distance import squareform
-            #self._matrix = squareform(self.distances.astype("float32"))
-            #assert np.allclose(M, self._matrix)
-            log.info("Memory usage after matrix formatting %gMB" %
-                     (util.memory_usage()))
-            del (M)
-            del (idx)
-            log.info("Memory usage after cleaning %gMB" %
-                     (util.memory_usage()))
+            log.info("Memory usage after matrix formatting %gMB" %(util.memory_usage()))
 
         return self._matrix
 
@@ -200,6 +197,8 @@ class TsneMapper(object):
     def compute_tsne(self, perplexity=30.0, fake=False):
         """
         """
+        if self.laidout():
+            self.clear_layout()
         import pandas as pd
         if fake:
             import numpy as np
@@ -216,11 +215,115 @@ class TsneMapper(object):
             log.info("Memory usage after embedding fit %gMB" %
                      (util.memory_usage()))
 
+        self.coord_dims = ["tsne0", "tsne1"]
+
         self.embedding = pd.DataFrame(
             self.embedding, columns=self.coord_dims, index=self.sequences[0])
 
         self.embedding.index.name = "Sequence"
-        self.KLdivergence_ = self.seq_tsne.kl_divergence_
+        self.fit_measure_ = self.seq_tsne.kl_divergence_
+
+    def compute_mds(self):
+        """
+        """
+        if self.laidout():
+            self.clear_layout()
+
+        import pandas as pd
+        from sklearn.manifold import MDS
+        self.seq_mds = MDS(dissimilarity="precomputed", verbose=1, n_jobs=-2)
+        self.embedding = self.seq_mds.fit_transform(self.matrix)
+        log.info("Memory usage after embedding fit %gMB" %
+                 (util.memory_usage()))
+
+        self.coord_dims = ["mds0", "mds1"]
+
+        self.embedding = pd.DataFrame(
+            self.embedding, columns=self.coord_dims, index=self.sequences[0])
+
+        self.embedding.index.name = "Sequence"
+        self.fit_measure_ = self.seq_mds.stress_
+
+    def _get_adjacency_matrix(self, random_reconnect=True):
+        """Return adjacency matrix for the kmers. Possibly connect singleton kmers to random closeby kmer 
+        
+        Arguments:
+        - `random_reconnect`:
+        """
+        # Compute adjacency matrix
+        import logging
+        import numpy as np
+        import pandas as pd
+
+        # Kmers on huddinge distance 1 are adjacent and distance two are half way.
+        adjacency = np.zeros(self.matrix.shape)
+        is_smallish = self.matrix.values < 2.5
+        adjacency[is_smallish] = 1.0 / self.matrix.values[is_smallish]
+        np.fill_diagonal(adjacency, 0.0)
+
+        disconnected = np.nonzero(~adjacency.any(axis=0))[0]
+
+        if len(disconnected) > 0:
+            if random_reconnect:
+                # Kmers further away are adjacent to a random kmer at huddinge distance 2
+                dis_idx, dis_adj = np.nonzero(
+                    (self.matrix.iloc[disconnected] == 2).values)
+
+                import numpy as np
+                rand_neighbor = pd.Series(dis_adj).groupby(dis_idx).apply(
+                    lambda x: np.random.choice(x, 1)[0])
+
+                x, y = disconnected[rand_neighbor.index].astype(
+                    int), rand_neighbor.values.astype(int)
+                assert (self.matrix.iloc[x, y] == 2).all().all()
+
+                adjacency[x, y] = True
+                adjacency[y, x] = True
+
+            else:
+                logging.info("Dropping %d disconnected kmers" %
+                             (len(disconnected)))
+                x = adjacency.any(axis=0)
+                adjacency = adjacency[x][:, x]
+
+        assert (adjacency == adjacency.T).all()
+
+        disconnected = np.nonzero(~adjacency.any(axis=0))[0]
+
+        if len(disconnected) > 0:
+            import warnings
+            warnings.warn("Disconnected kmers in adjacency graph")
+        return adjacency
+
+    def compute_spectral(self):
+        """
+        """
+        if self.laidout():
+            self.clear_layout()
+
+        import pandas as pd
+        from sklearn.manifold import SpectralEmbedding
+        self.seq_spectral = SpectralEmbedding(affinity="precomputed")
+
+        embedding = self.seq_spectral.fit_transform(
+            self._get_adjacency_matrix().astype(float))
+
+        log.info("Memory usage after embedding fit %gMB" %
+                 (util.memory_usage()))
+
+        self.coord_dims = ["spectral0", "spectral1"]
+        embedding = pd.DataFrame(
+            embedding, columns=self.coord_dims, index=self.sequences[0])
+
+        embedding.index.name = "Sequence"
+
+        if len(self.data_dims) > 0:
+            self.embedding = embedding.join(self.embedding[self.data_dims])
+        else:
+            self.embedding = embedding
+
+        self.fit_measure_ = -1.0
+        self.data_dims = []
 
     def write_data(self, outfile):
         """
@@ -228,15 +331,7 @@ class TsneMapper(object):
         Arguments:
         - `outfile`:
         """
-
-        log.info("Writing %s" % (outfile))
-        with open(outfile, "w") as outf:
-            outf.write("%d\t%g\n" % (len(self.sequences), self.KLdivergence_))
-            self.embedding.to_csv(outf, sep="\t", header=False, index=True)
-            assert self.distances.dtype == "uint8"
-            assert self.distances.ndim == 1
-            self.distances.tofile(outf)
-            #self.distances.to_csv(outf, sep="\t", header=False, index=False)
+        raise NotImplementedError("Don't try to do this.")
 
     def holoview_plot(
             self, ):
